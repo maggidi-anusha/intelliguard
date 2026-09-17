@@ -1,0 +1,16 @@
+{
+  "_comment": "Ground truth for Phase 7 precision/recall evaluation. Times are minutes elapsed since simulator start. The order-service/order-db/order-db-port-scan entries deliberately overlap (minute 10) across dependent services so Phase 5's correlation engine has one real multi-signal incident to detect, not just isolated blips.",
+
+  "metric_anomalies": [
+    { "service": "inventory-service", "anomaly_type": "memory_spike",  "start_minute": 3,  "duration_minutes": 2, "magnitude": "medium" },
+    { "service": "auth-service",      "anomaly_type": "error_burst",   "start_minute": 6,  "duration_minutes": 2, "magnitude": "high" },
+    { "service": "order-service",     "anomaly_type": "cpu_spike",     "start_minute": 10, "duration_minutes": 3, "magnitude": "high" },
+    { "service": "order-db",          "anomaly_type": "latency_spike", "start_minute": 10, "duration_minutes": 4, "magnitude": "medium" },
+    { "service": "api-gateway",       "anomaly_type": "network_spike", "start_minute": 16, "duration_minutes": 2, "magnitude": "low" }
+  ],
+
+  "security_events": [
+    { "service": "auth-service", "event_type": "FAILED_LOGIN", "severity": "HIGH",   "start_minute": 6,  "duration_minutes": 2 },
+    { "service": "order-db",     "event_type": "PORT_SCAN",    "severity": "MEDIUM", "start_minute": 10, "duration_minutes": 2 }
+  ]
+}

@@ -48,6 +48,18 @@ public class SecurityConfig {
                         // anyRequest().authenticated() below masks the real status with a 403.
                         .requestMatchers("/error").permitAll()
 
+                        // TELEMETRY INGESTION - ADMIN only. These are trusted system-level
+                        // writes (the simulator/agents), a meaningfully different capability
+                        // from a USER registering their own service, so they're gated tighter.
+                        // Listed before the general "/api/services/**" POST rule below since
+                        // Spring Security's authorizeHttpRequests matches in declaration order.
+                        .requestMatchers(HttpMethod.POST, "/api/services/*/metrics")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/services/*/logs")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/security-events")
+                        .hasRole("ADMIN")
+
                         // SERVICES - READ: VIEWER, USER, ADMIN
                         .requestMatchers(HttpMethod.GET, "/api/services/**")
                         .hasAnyRole("VIEWER", "USER", "ADMIN")

@@ -51,5 +51,16 @@ services:
     depends_on:
       - backend-core
 
+  simulator:
+    build: ../simulator
+    depends_on:
+      - backend-core
+      - jaeger
+    environment:
+      BACKEND_URL: http://backend-core:8080
+      OTLP_ENDPOINT: jaeger:4317
+      TICK_SECONDS: "5"
+      SIMULATOR_ADMIN_PASSWORD: ${INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD}
+
 volumes:
   pgdata:
