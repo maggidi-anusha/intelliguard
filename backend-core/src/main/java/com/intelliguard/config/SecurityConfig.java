@@ -4,6 +4,7 @@ import com.intelliguard.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -17,9 +18,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 // Ported from SentinelCore's SecurityConfig as a starting point (JWT filter + RBAC pattern).
-// Resource-specific rules (services/incidents/etc.) get added here as those controllers
-// are built in Phase 1 - for now only auth and health are public, everything else needs a
-// valid JWT, and role-gated endpoints are added incrementally instead of guessed up front.
+// Resource-specific rules are added here per-endpoint as controllers are built, rather than
+// relying on the frontend to hide buttons - same principle SentinelCore followed.
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -42,6 +42,24 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
+                        // Spring Boot forwards to /error internally whenever a controller sends
+                        // a non-2xx status (e.g. our ResponseStatusException(409)); without this,
+                        // that forwarded request re-enters the filter chain unauthenticated and
+                        // anyRequest().authenticated() below masks the real status with a 403.
+                        .requestMatchers("/error").permitAll()
+
+                        // SERVICES - READ: VIEWER, USER, ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/services/**")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+
+                        // SERVICES - WRITE: USER, ADMIN only
+                        .requestMatchers(HttpMethod.POST, "/api/services/**")
+                        .hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/services/**")
+                        .hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/services/**")
+                        .hasAnyRole("USER", "ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
