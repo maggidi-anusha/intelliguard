@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +48,16 @@ public class TelemetryService {
                 .build();
 
         return logRecordRepository.save(record);
+    }
+
+    public List<MetricRecord> getRecentMetrics(Long serviceId) {
+        ensureServiceExists(serviceId);
+        return metricRecordRepository.findTop50ByServiceIdOrderByTimestampDesc(serviceId);
+    }
+
+    public List<LogRecord> getRecentLogs(Long serviceId) {
+        ensureServiceExists(serviceId);
+        return logRecordRepository.findTop50ByServiceIdOrderByTimestampDesc(serviceId);
     }
 
     private void ensureServiceExists(Long serviceId) {

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,5 +34,9 @@ public class SecurityEventService {
                 .build();
 
         return securityEventRepository.save(event);
+    }
+
+    public List<SecurityEvent> getRecent() {
+        return securityEventRepository.findTop50ByOrderByTimestampDesc();
     }
 }

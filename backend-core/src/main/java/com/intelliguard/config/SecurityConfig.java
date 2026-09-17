@@ -5,11 +5,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -39,6 +41,13 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                // Without this, Spring Security's default entry point returns 403 for a
+                // missing/invalid token, indistinguishable from a valid token with the wrong
+                // role. This makes "not authenticated" 401 and leaves role-based denial (a
+                // valid token, wrong role) as 403 via the existing AccessDeniedException path.
+                .exceptionHandling(exceptions ->
+                        exceptions.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
@@ -60,8 +69,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/security-events")
                         .hasRole("ADMIN")
 
-                        // SERVICES - READ: VIEWER, USER, ADMIN
+                        // SERVICES - READ: VIEWER, USER, ADMIN (also covers GET on the nested
+                        // /metrics and /logs paths - same read access as the service itself)
                         .requestMatchers(HttpMethod.GET, "/api/services/**")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+
+                        // SECURITY EVENTS - READ: VIEWER, USER, ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/security-events")
                         .hasAnyRole("VIEWER", "USER", "ADMIN")
 
                         // SERVICES - WRITE: USER, ADMIN only
