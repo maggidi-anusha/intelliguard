@@ -5,8 +5,10 @@ services:
       POSTGRES_DB: ${INTELLIGUARD_DB_NAME}
       POSTGRES_USER: ${INTELLIGUARD_DB_USERNAME}
       POSTGRES_PASSWORD: ${INTELLIGUARD_DB_PASSWORD}
+    # Host port 5433, not 5432, so it doesn't collide with a Postgres already installed on
+    # the host. Containers still reach it on postgres:5432 over the compose network.
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
