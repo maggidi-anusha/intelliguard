@@ -62,4 +62,14 @@ export const api = {
     request(`/api/services/${serviceId}/logs`, { token }),
 
   getSecurityEvents: (token) => request('/api/security-events', { token }),
+
+  getDashboardSummary: (token) => request('/api/dashboard/summary', { token }),
+
+  getLogs: (token, { serviceId, level } = {}) => {
+    const params = new URLSearchParams()
+    if (serviceId) params.set('serviceId', serviceId)
+    if (level) params.set('level', level)
+    const query = params.toString()
+    return request(`/api/logs${query ? `?${query}` : ''}`, { token })
+  },
 }

@@ -78,6 +78,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/security-events")
                         .hasAnyRole("VIEWER", "USER", "ADMIN")
 
+                        // DASHBOARD - READ: VIEWER, USER, ADMIN (pure aggregation/visualization
+                        // of data already covered by the read rules above)
+                        .requestMatchers(HttpMethod.GET, "/api/dashboard/**")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+
+                        // LOGS (global, cross-service view) - READ: VIEWER, USER, ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/logs")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+
                         // SERVICES - WRITE: USER, ADMIN only
                         .requestMatchers(HttpMethod.POST, "/api/services/**")
                         .hasAnyRole("USER", "ADMIN")

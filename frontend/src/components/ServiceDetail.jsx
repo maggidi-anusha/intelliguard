@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../AuthContext'
 import { api } from '../api'
+import { MetricChart } from './MetricChart'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -59,6 +60,20 @@ export function ServiceDetail({ service }) {
     if (!latestByType[m.metricType]) latestByType[m.metricType] = m
   }
 
+  // Same records, grouped by type and reversed into chronological order - the stat tiles
+  // above want "latest first", the charts below want "oldest to newest, left to right".
+  const chartDataByType = {}
+  for (const m of metrics) {
+    if (!chartDataByType[m.metricType]) chartDataByType[m.metricType] = []
+    chartDataByType[m.metricType].push(m)
+  }
+  for (const type of Object.keys(chartDataByType)) {
+    chartDataByType[type] = chartDataByType[type]
+      .slice()
+      .reverse()
+      .map((m) => ({ time: new Date(m.timestamp).toLocaleTimeString(), value: m.value }))
+  }
+
   return (
     <section className="panel detail-panel">
       <h2>{service.name}</h2>
@@ -83,6 +98,24 @@ export function ServiceDetail({ service }) {
                 {m.value}{METRIC_UNITS[type] ?? ''}
               </span>
             </div>
+          ))}
+        </div>
+      )}
+
+      <h3>Metric history</h3>
+      {loading && metrics.length === 0 && <p className="muted">Loading metric history...</p>}
+      {!loading && metrics.length === 0 && !error && (
+        <p className="muted">No metric history recorded yet for this service.</p>
+      )}
+      {Object.keys(latestByType).length > 0 && (
+        <div className="chart-grid">
+          {Object.keys(latestByType).map((type) => (
+            <MetricChart
+              key={type}
+              metricType={type}
+              unit={METRIC_UNITS[type] ?? ''}
+              data={chartDataByType[type]}
+            />
           ))}
         </div>
       )}

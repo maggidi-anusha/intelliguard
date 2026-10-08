@@ -206,6 +206,144 @@ tbody tr.selected {
 .badge-high { color: #b42318; border-color: #b42318; }
 .badge-critical { color: #fff; background: #b42318; border-color: #b42318; }
 
+.badge-status-healthy { color: #067647; border-color: #067647; }
+.badge-status-degraded { color: #b54708; border-color: #b54708; }
+.badge-status-unknown { color: var(--text); opacity: 0.7; }
+
+/* ---- Dashboard tabs ---- */
+
+.dashboard-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-tabs button {
+  font: inherit;
+  padding: 10px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dashboard-tabs button.active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+/* ---- Summary cards ---- */
+
+.dashboard-summary {
+  padding: 20px 24px 0;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.summary-card-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.summary-card-label {
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.summary-card-healthy .summary-card-value { color: #067647; }
+.summary-card-degraded .summary-card-value { color: #b54708; }
+.summary-card-unknown .summary-card-value { color: var(--text); opacity: 0.85; }
+
+/* ---- Metric history charts ---- */
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metric-chart {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.metric-chart-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-height: 80px;
+}
+
+/* ---- Logs page ---- */
+
+.logs-page {
+  margin: 20px 24px;
+}
+
+.logs-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.logs-filter-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.logs-filter-bar select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.log-list.logs-page-list {
+  max-height: none;
+}
+
+.log-service {
+  flex-shrink: 0;
+  color: var(--text);
+  opacity: 0.8;
+  font-size: 12px;
+}
+
 /* ---- Service detail ---- */
 
 .stat-grid {

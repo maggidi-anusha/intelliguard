@@ -5,7 +5,15 @@ import { api } from '../api'
 const SERVICE_TYPES = ['HOST', 'CONTAINER', 'MICROSERVICE', 'DATABASE']
 const CRITICALITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 
-export function ServiceList({ services, loading, error, selectedServiceId, onSelect, onServiceCreated }) {
+export function ServiceList({
+  services,
+  loading,
+  error,
+  selectedServiceId,
+  onSelect,
+  onServiceCreated,
+  healthByServiceId = {},
+}) {
   const { auth, handleAuthError } = useAuth()
   const canWrite = auth.role === 'USER' || auth.role === 'ADMIN'
 
@@ -81,24 +89,40 @@ export function ServiceList({ services, loading, error, selectedServiceId, onSel
               <th>Name</th>
               <th>Type</th>
               <th>Criticality</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {services.map((s) => (
-              <tr
-                key={s.id}
-                className={s.id === selectedServiceId ? 'selected' : ''}
-                onClick={() => onSelect(s.id)}
-              >
-                <td>{s.name}</td>
-                <td>{s.type}</td>
-                <td>
-                  <span className={`badge badge-${s.criticality.toLowerCase()}`}>
-                    {s.criticality}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {services.map((s) => {
+              const health = healthByServiceId[s.id]
+              return (
+                <tr
+                  key={s.id}
+                  className={s.id === selectedServiceId ? 'selected' : ''}
+                  onClick={() => onSelect(s.id)}
+                >
+                  <td>{s.name}</td>
+                  <td>{s.type}</td>
+                  <td>
+                    <span className={`badge badge-${s.criticality.toLowerCase()}`}>
+                      {s.criticality}
+                    </span>
+                  </td>
+                  <td>
+                    {health ? (
+                      <span
+                        className={`badge badge-status-${health.status.toLowerCase()}`}
+                        title={health.reasons?.join('; ')}
+                      >
+                        {health.status}
+                      </span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}

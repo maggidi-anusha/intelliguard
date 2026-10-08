@@ -36,8 +36,27 @@ docker compose up --build
 - [x] **Phase 0** — Repo & architecture decisions
 - [x] **Phase 1** — Foundation: DB schema, JWT auth, RBAC, Service registry CRUD
 - [x] **Phase 2** — Telemetry pipeline (simulator + ingestion + tracing)
-- [ ] **Phase 3** — Dashboard v1
+- [x] **Phase 3** — Dashboard v1
 - [ ] **Phase 4** — Anomaly detection + risk engine
 - [ ] **Phase 5** — Correlation + root cause
 - [ ] **Phase 6** — Incident workspace + lite RAG copilot
 - [ ] **Phase 7** — Testing, CI/CD, deployment, evaluation, report
+
+### Phase 3 details
+
+Dashboard v1 is a pure visualization/aggregation layer over what Phase 2 already collects -
+no ML, no correlation, nothing from Phase 4-6 is implemented here.
+
+- **Overview tab** — aggregate cards (total/healthy/degraded/unknown services, recent log
+  and security-event counts) from a single `GET /api/dashboard/summary`; a service list with
+  a derived health-status badge per service; a service detail panel with latest metric
+  values and per-metric-type history charts (Recharts); a recent security-events panel.
+- **Logs tab** — a dedicated, filterable view (`GET /api/logs?serviceId=&level=`) across all
+  services, independent of which service is selected on the Overview tab.
+- **Health status is a fixed-threshold rule, not ML**: a service is `DEGRADED` if its latest
+  CPU/MEMORY/DISK is above 90%, ERROR_RATE above 5%, or LATENCY above 500ms; `UNKNOWN` if it
+  has no metrics yet; otherwise `HEALTHY`. This is deliberately simple and deterministic —
+  learned/ML-based anomaly detection is Phase 4's job, not Phase 3's.
+- **Known limitations (deferred, not gaps)**: no trace view yet (Jaeger's own UI is the
+  trace backend for now — see `http://localhost:16686`); no sidebar/full navigation
+  restructure (a lightweight Overview/Logs tab switcher covers this for now).
