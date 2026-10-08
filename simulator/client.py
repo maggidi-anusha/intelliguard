@@ -20,27 +20,6 @@ class BackendClient:
         self.token = None
         self.token_acquired_at = 0.0
 
-    def ensure_admin_registered(self):
-        try:
-            resp = self.session.post(
-                f"{self.base_url}/api/auth/register",
-                json={
-                    "username": config.ADMIN_USERNAME,
-                    "password": config.ADMIN_PASSWORD,
-                    "email": config.ADMIN_EMAIL,
-                    "role": "ADMIN",
-                },
-                timeout=10,
-            )
-            if resp.status_code == 201:
-                log.info("Registered simulator admin account '%s'", config.ADMIN_USERNAME)
-            elif resp.status_code == 409:
-                log.info("Simulator admin account '%s' already exists", config.ADMIN_USERNAME)
-            else:
-                log.warning("Unexpected register response %s: %s", resp.status_code, resp.text)
-        except requests.RequestException as exc:
-            log.warning("Register request failed: %s", exc)
-
     def login(self):
         resp = self.session.post(
             f"{self.base_url}/api/auth/login",

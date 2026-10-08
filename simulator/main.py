@@ -72,7 +72,6 @@ def wait_for_backend(client, timeout_seconds=120):
 def main():
     client = BackendClient()
     wait_for_backend(client)
-    client.ensure_admin_registered()
 
     services = register_services(client)
     log.info("Topology ready: %s", services)

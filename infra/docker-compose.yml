@@ -37,6 +37,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${INTELLIGUARD_DB_NAME}
       DB_USERNAME: ${INTELLIGUARD_DB_USERNAME}
       DB_PASSWORD: ${INTELLIGUARD_DB_PASSWORD}
+      # Seeds the simulator's ADMIN account at startup (self-registration can't create ADMINs).
+      SIMULATOR_ADMIN_PASSWORD: ${INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD}
 
   ml-service:
     build: ../ml-service

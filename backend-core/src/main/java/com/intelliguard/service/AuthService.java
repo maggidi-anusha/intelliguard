@@ -15,13 +15,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    private static final Set<String> VALID_ROLES = Set.of("ADMIN", "USER", "VIEWER");
+    // Public self-registration can only ever create non-privileged accounts. ADMIN accounts
+    // are provisioned out-of-band (see AdminAccountSeeder) - otherwise anyone could call
+    // /api/auth/register with "role": "ADMIN" and bypass RBAC entirely.
+    private static final Set<String> SELF_REGISTRATION_ROLES = Set.of("USER", "VIEWER");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -37,9 +41,14 @@ public class AuthService {
                 ? "USER"
                 : request.getRole().toUpperCase();
 
-        if (!VALID_ROLES.contains(roleName)) {
+        if ("ADMIN".equals(roleName)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "ADMIN accounts cannot be self-registered");
+        }
+
+        if (!SELF_REGISTRATION_ROLES.contains(roleName)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "role must be one of " + VALID_ROLES);
+                    "role must be one of " + SELF_REGISTRATION_ROLES);
         }
 
         Role role = findOrCreateRole(roleName);
@@ -77,6 +86,27 @@ public class AuthService {
                 .username(user.getUsername())
                 .role(stripRolePrefix(roleName))
                 .build();
+    }
+
+    public enum AdminSeedResult { CREATED, ALREADY_EXISTS, USERNAME_TAKEN_BY_NON_ADMIN }
+
+    // The only way an ADMIN account comes into existence. Idempotent across restarts, and an
+    // existing account is never modified - no silent password resets or role promotions.
+    public AdminSeedResult ensureAdminAccount(String username, String password, String email) {
+        Optional<User> existing = userRepository.findByUsername(username);
+        if (existing.isPresent()) {
+            return "ROLE_ADMIN".equals(existing.get().getRole().getName())
+                    ? AdminSeedResult.ALREADY_EXISTS
+                    : AdminSeedResult.USERNAME_TAKEN_BY_NON_ADMIN;
+        }
+
+        userRepository.save(User.builder()
+                .username(username)
+                .passwordHash(passwordEncoder.encode(password))
+                .email(email)
+                .role(findOrCreateRole("ADMIN"))
+                .build());
+        return AdminSeedResult.CREATED;
     }
 
     private Role findOrCreateRole(String roleName) {
