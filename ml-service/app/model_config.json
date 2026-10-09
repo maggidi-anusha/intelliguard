@@ -1,0 +1,32 @@
+{
+  "default_detector": "L1",
+  "operating_point": "budget",
+  "alarm_budget_per_hour": 1.0,
+  "detectors": {
+    "L1": {
+      "window": 60,
+      "alpha": 0.2,
+      "threshold": 2.1532,
+      "floor_fraction": 0.25
+    },
+    "L2": {
+      "window": 60,
+      "short_window": 6,
+      "threshold": 0.5963,
+      "n_estimators": 200,
+      "max_samples": 256,
+      "random_state": 0
+    }
+  },
+  "train": {
+    "seeds": [
+      101,
+      102,
+      103
+    ],
+    "days": 1,
+    "mode": "normal"
+  },
+  "selected_by": "VALIDATION episode recall at <= 1.0 false alarm/hour (seeds [201, 202], normal 203)",
+  "evaluation": "docs/evaluation/phase4-experiments.md"
+}

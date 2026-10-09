@@ -41,7 +41,11 @@ services:
       SIMULATOR_ADMIN_PASSWORD: ${INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD}
 
   ml-service:
-    build: ../ml-service
+    build:
+      context: ../ml-service
+      # The simulator's generator produces ml-service's normal training data at build time.
+      additional_contexts:
+        simulator: ../simulator
     ports:
       - "8000:8000"
     depends_on:

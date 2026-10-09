@@ -1,0 +1,2 @@
+# Trained at Docker build time (python -m app.train) - not committed.
+models/

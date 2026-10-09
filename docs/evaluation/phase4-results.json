@@ -1,0 +1,1158 @@
+{
+  "sets": [
+    {
+      "set": "TRAIN",
+      "seeds": [
+        101,
+        102,
+        103
+      ],
+      "mode": "normal",
+      "metric_rows": 2488320,
+      "anomalous_metric_rows": 0,
+      "service_ticks": 414720,
+      "anomalous_service_ticks": 0,
+      "episodes": 0,
+      "episodes_by_type": {
+        "SPIKE/EASY": 0,
+        "SPIKE/SUBTLE": 0,
+        "LEVEL_SHIFT/EASY": 0,
+        "LEVEL_SHIFT/SUBTLE": 0,
+        "DRIFT/EASY": 0,
+        "DRIFT/SUBTLE": 0,
+        "VARIANCE/EASY": 0,
+        "VARIANCE/SUBTLE": 0,
+        "CORRELATED/EASY": 0,
+        "CORRELATED/SUBTLE": 0
+      }
+    },
+    {
+      "set": "VALIDATION",
+      "seeds": [
+        201,
+        202
+      ],
+      "mode": "continuous",
+      "metric_rows": 1658880,
+      "anomalous_metric_rows": 16800,
+      "service_ticks": 276480,
+      "anomalous_service_ticks": 14679,
+      "episodes": 127,
+      "episodes_by_type": {
+        "SPIKE/EASY": 11,
+        "SPIKE/SUBTLE": 17,
+        "LEVEL_SHIFT/EASY": 9,
+        "LEVEL_SHIFT/SUBTLE": 17,
+        "DRIFT/EASY": 12,
+        "DRIFT/SUBTLE": 10,
+        "VARIANCE/EASY": 11,
+        "VARIANCE/SUBTLE": 12,
+        "CORRELATED/EASY": 12,
+        "CORRELATED/SUBTLE": 16
+      }
+    },
+    {
+      "set": "TEST",
+      "seeds": [
+        301,
+        302,
+        303
+      ],
+      "mode": "continuous",
+      "metric_rows": 2488320,
+      "anomalous_metric_rows": 26252,
+      "service_ticks": 414720,
+      "anomalous_service_ticks": 22577,
+      "episodes": 194,
+      "episodes_by_type": {
+        "SPIKE/EASY": 14,
+        "SPIKE/SUBTLE": 20,
+        "LEVEL_SHIFT/EASY": 16,
+        "LEVEL_SHIFT/SUBTLE": 19,
+        "DRIFT/EASY": 16,
+        "DRIFT/SUBTLE": 24,
+        "VARIANCE/EASY": 20,
+        "VARIANCE/SUBTLE": 19,
+        "CORRELATED/EASY": 20,
+        "CORRELATED/SUBTLE": 26
+      }
+    },
+    {
+      "set": "VALIDATION-normal",
+      "seeds": [
+        203
+      ],
+      "mode": "normal",
+      "metric_rows": 829440,
+      "anomalous_metric_rows": 0,
+      "service_ticks": 138240,
+      "anomalous_service_ticks": 0,
+      "episodes": 0,
+      "episodes_by_type": {
+        "SPIKE/EASY": 0,
+        "SPIKE/SUBTLE": 0,
+        "LEVEL_SHIFT/EASY": 0,
+        "LEVEL_SHIFT/SUBTLE": 0,
+        "DRIFT/EASY": 0,
+        "DRIFT/SUBTLE": 0,
+        "VARIANCE/EASY": 0,
+        "VARIANCE/SUBTLE": 0,
+        "CORRELATED/EASY": 0,
+        "CORRELATED/SUBTLE": 0
+      }
+    },
+    {
+      "set": "TEST-normal",
+      "seeds": [
+        304
+      ],
+      "mode": "normal",
+      "metric_rows": 829440,
+      "anomalous_metric_rows": 0,
+      "service_ticks": 138240,
+      "anomalous_service_ticks": 0,
+      "episodes": 0,
+      "episodes_by_type": {
+        "SPIKE/EASY": 0,
+        "SPIKE/SUBTLE": 0,
+        "LEVEL_SHIFT/EASY": 0,
+        "LEVEL_SHIFT/SUBTLE": 0,
+        "DRIFT/EASY": 0,
+        "DRIFT/SUBTLE": 0,
+        "VARIANCE/EASY": 0,
+        "VARIANCE/SUBTLE": 0,
+        "CORRELATED/EASY": 0,
+        "CORRELATED/SUBTLE": 0
+      }
+    }
+  ],
+  "chosen": {
+    "L1-F1": {
+      "window": 60,
+      "alpha": 0.2,
+      "threshold": 1.7722,
+      "floor_fraction": 0.25
+    },
+    "L2-F1": {
+      "window": 60,
+      "short_window": 6,
+      "threshold": 0.5048,
+      "n_estimators": 200,
+      "max_samples": 256,
+      "random_state": 0
+    },
+    "L1-budget": {
+      "window": 60,
+      "alpha": 0.2,
+      "threshold": 2.1532,
+      "floor_fraction": 0.25
+    },
+    "L2-budget": {
+      "window": 60,
+      "short_window": 6,
+      "threshold": 0.5963,
+      "n_estimators": 200,
+      "max_samples": 256,
+      "random_state": 0
+    }
+  },
+  "choice_text": "**L1 at the budget operating point** is the default (`{\"window\": 60, \"alpha\": 0.2, \"threshold\": 2.1532, \"floor_fraction\": 0.25}`). It was picked on VALIDATION: at \u2264 1.0 false alarm/hour it detects 57.5% of VALIDATION episodes vs 22.0% for L2. On TEST: episode recall 57.7% vs 27.3%, row F1 21.4% vs 2.6%, false alarms/hour 1.58 vs 1.08 \u2014 TEST agrees with the VALIDATION choice.\n\nThe original plan (best VALIDATION row F1) would have picked **L2-F1** (25.7% VALIDATION F1). It was not used as the service default because its threshold flags 305 false alarms/hour on the normal TEST run, which no alerting service could act on. The scoring service also returns the L0 result alongside for comparison.",
+  "validation": {
+    "L1_grid": [
+      {
+        "window": 20,
+        "alpha": 0.2,
+        "threshold": 2.0539005703087834,
+        "f1": 0.12240069163216089,
+        "budget_threshold": 3.0951040105188445,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.44881889763779526,
+        "budget_f1": 0.1099872812064684
+      },
+      {
+        "window": 20,
+        "alpha": 0.4,
+        "threshold": 1.291011767668149,
+        "f1": 0.1018625281768415,
+        "budget_threshold": 4.622150499017847,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.4251968503937008,
+        "budget_f1": 0.07480290129296753
+      },
+      {
+        "window": 20,
+        "alpha": 1.0,
+        "threshold": 0.6106875795261079,
+        "f1": 0.10097894456566466,
+        "budget_threshold": 8.272578829849138,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.41732283464566927,
+        "budget_f1": 0.05285658764088613
+      },
+      {
+        "window": 40,
+        "alpha": 0.2,
+        "threshold": 1.9569630014552464,
+        "f1": 0.17167651210204402,
+        "budget_threshold": 2.4919310229707334,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.4645669291338583,
+        "budget_f1": 0.16072548907773912
+      },
+      {
+        "window": 40,
+        "alpha": 0.4,
+        "threshold": 2.3990212762908842,
+        "f1": 0.13981413803905188,
+        "budget_threshold": 3.2852655189347146,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.4566929133858268,
+        "budget_f1": 0.13364844903988182
+      },
+      {
+        "window": 40,
+        "alpha": 1.0,
+        "threshold": 4.338332207908239,
+        "f1": 0.11725121186199029,
+        "budget_threshold": 5.735943335384527,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.4330708661417323,
+        "budget_f1": 0.10942658026653625
+      },
+      {
+        "window": 60,
+        "alpha": 0.2,
+        "threshold": 1.7722205282693946,
+        "f1": 0.22134691132673648,
+        "budget_threshold": 2.1531521325513148,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.5748031496062992,
+        "budget_f1": 0.20720382199796017
+      },
+      {
+        "window": 60,
+        "alpha": 0.4,
+        "threshold": 2.4856965904416426,
+        "f1": 0.1879114948731786,
+        "budget_threshold": 2.869471875831684,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.5275590551181102,
+        "budget_f1": 0.18381405768692244
+      },
+      {
+        "window": 60,
+        "alpha": 1.0,
+        "threshold": 3.9279167757754654,
+        "f1": 0.16546956850461736,
+        "budget_threshold": 4.993776868275768,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.47244094488188976,
+        "budget_f1": 0.1601958726827562
+      }
+    ],
+    "L2_grid": [
+      {
+        "window": 20,
+        "threshold": 0.4973026949752118,
+        "f1": 0.21152159614119706,
+        "budget_threshold": 0.5935686349698898,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.1889763779527559,
+        "budget_f1": 0.009864198364975341
+      },
+      {
+        "window": 60,
+        "threshold": 0.504818192987162,
+        "f1": 0.2567153306826115,
+        "budget_threshold": 0.5962729349676115,
+        "budget_alarms_per_hour": 1.0,
+        "budget_episode_recall": 0.2204724409448819,
+        "budget_f1": 0.017772990440285442
+      }
+    ],
+    "metrics": {
+      "L0": {
+        "ALL": {
+          "episodes": 127,
+          "episodes_detected": 43,
+          "episode_recall": 0.33858267716535434,
+          "row_precision": 1.0,
+          "row_recall": 0.1659513590844063,
+          "row_f1": 0.2846625766871166,
+          "mean_delay_ticks": 24.767441860465116,
+          "chance_episode_recall": null
+        },
+        "EASY": {
+          "episodes": 55,
+          "episodes_detected": 43,
+          "episode_recall": 0.7818181818181819,
+          "row_precision": 1.0,
+          "row_recall": 0.3648891551827442,
+          "row_f1": 0.5346795434591747,
+          "mean_delay_ticks": 24.767441860465116,
+          "chance_episode_recall": null
+        },
+        "SUBTLE": {
+          "episodes": 72,
+          "episodes_detected": 0,
+          "episode_recall": 0.0,
+          "row_precision": 0.0,
+          "row_recall": 0.0,
+          "row_f1": 0.0,
+          "mean_delay_ticks": null,
+          "chance_episode_recall": null
+        },
+        "SPIKE": {
+          "episodes": 28,
+          "episodes_detected": 9,
+          "episode_recall": 0.32142857142857145,
+          "row_precision": 1.0,
+          "row_recall": 0.23087621696801114,
+          "row_f1": 0.3751412429378531,
+          "mean_delay_ticks": 1.1111111111111112,
+          "chance_episode_recall": null
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 26,
+          "episodes_detected": 7,
+          "episode_recall": 0.2692307692307692,
+          "row_precision": 1.0,
+          "row_recall": 0.10268714011516315,
+          "row_f1": 0.18624891209747607,
+          "mean_delay_ticks": 12.285714285714286,
+          "chance_episode_recall": null
+        },
+        "DRIFT": {
+          "episodes": 22,
+          "episodes_detected": 10,
+          "episode_recall": 0.45454545454545453,
+          "row_precision": 1.0,
+          "row_recall": 0.22312732424296086,
+          "row_f1": 0.3648472564065441,
+          "mean_delay_ticks": 87.6,
+          "chance_episode_recall": null
+        },
+        "VARIANCE": {
+          "episodes": 23,
+          "episodes_detected": 9,
+          "episode_recall": 0.391304347826087,
+          "row_precision": 1.0,
+          "row_recall": 0.10763209393346379,
+          "row_f1": 0.19434628975265017,
+          "mean_delay_ticks": 7.555555555555555,
+          "chance_episode_recall": null
+        },
+        "CORRELATED": {
+          "episodes": 28,
+          "episodes_detected": 8,
+          "episode_recall": 0.2857142857142857,
+          "row_precision": 1.0,
+          "row_recall": 0.16925978312116927,
+          "row_f1": 0.28951612903225804,
+          "mean_delay_ticks": 3.125,
+          "chance_episode_recall": null
+        }
+      },
+      "L1-F1": {
+        "ALL": {
+          "episodes": 127,
+          "episodes_detected": 103,
+          "episode_recall": 0.8110236220472441,
+          "row_precision": 0.3753054243362111,
+          "row_recall": 0.15695892090741875,
+          "row_f1": 0.22134691132673648,
+          "mean_delay_ticks": 9.650485436893204,
+          "chance_episode_recall": null
+        },
+        "EASY": {
+          "episodes": 55,
+          "episodes_detected": 55,
+          "episode_recall": 1.0,
+          "row_precision": 0.33947640372028937,
+          "row_recall": 0.2952366686638706,
+          "row_f1": 0.31581477327351387,
+          "mean_delay_ticks": 0.03636363636363636,
+          "chance_episode_recall": null
+        },
+        "SUBTLE": {
+          "episodes": 72,
+          "episodes_detected": 48,
+          "episode_recall": 0.6666666666666666,
+          "row_precision": 0.07989443378119002,
+          "row_recall": 0.04160939647632138,
+          "row_f1": 0.05472023662805028,
+          "mean_delay_ticks": 20.666666666666668,
+          "chance_episode_recall": null
+        },
+        "SPIKE": {
+          "episodes": 28,
+          "episodes_detected": 23,
+          "episode_recall": 0.8214285714285714,
+          "row_precision": 0.09594530881659595,
+          "row_recall": 0.5660639777468707,
+          "row_f1": 0.164079822616408,
+          "mean_delay_ticks": 2.652173913043478,
+          "chance_episode_recall": null
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 26,
+          "episodes_detected": 23,
+          "episode_recall": 0.8846153846153846,
+          "row_precision": 0.1052263182454503,
+          "row_recall": 0.14427383237364044,
+          "row_f1": 0.12169454937938477,
+          "mean_delay_ticks": 3.3043478260869565,
+          "chance_episode_recall": null
+        },
+        "DRIFT": {
+          "episodes": 22,
+          "episodes_detected": 17,
+          "episode_recall": 0.7727272727272727,
+          "row_precision": 0.10855416085541608,
+          "row_recall": 0.082698778112272,
+          "row_f1": 0.09387878178711428,
+          "mean_delay_ticks": 44.05882352941177,
+          "chance_episode_recall": null
+        },
+        "VARIANCE": {
+          "episodes": 23,
+          "episodes_detected": 21,
+          "episode_recall": 0.9130434782608695,
+          "row_precision": 0.1095890410958904,
+          "row_recall": 0.15394651011089366,
+          "row_f1": 0.1280347212803472,
+          "mean_delay_ticks": 4.142857142857143,
+          "chance_episode_recall": null
+        },
+        "CORRELATED": {
+          "episodes": 28,
+          "episodes_detected": 19,
+          "episode_recall": 0.6785714285714286,
+          "row_precision": 0.11676646706586827,
+          "row_recall": 0.23903818953323905,
+          "row_f1": 0.15689308370725671,
+          "mean_delay_ticks": 1.105263157894737,
+          "chance_episode_recall": null
+        }
+      },
+      "L2-F1": {
+        "ALL": {
+          "episodes": 127,
+          "episodes_detected": 127,
+          "episode_recall": 1.0,
+          "row_precision": 0.23149770089774468,
+          "row_recall": 0.2880986443218203,
+          "row_f1": 0.2567153306826115,
+          "mean_delay_ticks": 5.078740157480315,
+          "chance_episode_recall": null
+        },
+        "EASY": {
+          "episodes": 55,
+          "episodes_detected": 55,
+          "episode_recall": 1.0,
+          "row_precision": 0.18301908752327747,
+          "row_recall": 0.47109047333732773,
+          "row_f1": 0.2636211232187762,
+          "mean_delay_ticks": 0.4909090909090909,
+          "chance_episode_recall": null
+        },
+        "SUBTLE": {
+          "episodes": 72,
+          "episodes_detected": 72,
+          "episode_recall": 1.0,
+          "row_precision": 0.0716788996892151,
+          "row_recall": 0.13544920654754466,
+          "row_f1": 0.09374729741416588,
+          "mean_delay_ticks": 8.583333333333334,
+          "chance_episode_recall": null
+        },
+        "SPIKE": {
+          "episodes": 28,
+          "episodes_detected": 28,
+          "episode_recall": 1.0,
+          "row_precision": 0.02044376221043818,
+          "row_recall": 0.40751043115438107,
+          "row_f1": 0.038934290080393334,
+          "mean_delay_ticks": 3.9642857142857144,
+          "chance_episode_recall": null
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 26,
+          "episodes_detected": 26,
+          "episode_recall": 1.0,
+          "row_precision": 0.04580982804322708,
+          "row_recall": 0.21561100447856685,
+          "row_f1": 0.07556477381019115,
+          "mean_delay_ticks": 3.1923076923076925,
+          "chance_episode_recall": null
+        },
+        "DRIFT": {
+          "episodes": 22,
+          "episodes_detected": 22,
+          "episode_recall": 1.0,
+          "row_precision": 0.08295773727872494,
+          "row_recall": 0.2248981760226669,
+          "row_f1": 0.12120633708723039,
+          "mean_delay_ticks": 14.681818181818182,
+          "chance_episode_recall": null
+        },
+        "VARIANCE": {
+          "episodes": 23,
+          "episodes_detected": 23,
+          "episode_recall": 1.0,
+          "row_precision": 0.056138227780018826,
+          "row_recall": 0.27234181343770386,
+          "row_f1": 0.09308807134894093,
+          "mean_delay_ticks": 3.217391304347826,
+          "chance_episode_recall": null
+        },
+        "CORRELATED": {
+          "episodes": 28,
+          "episodes_detected": 28,
+          "episode_recall": 1.0,
+          "row_precision": 0.07613845748881284,
+          "row_recall": 0.5454974068835455,
+          "row_f1": 0.1336259167292256,
+          "mean_delay_ticks": 1.9285714285714286,
+          "chance_episode_recall": null
+        }
+      },
+      "L1-budget": {
+        "ALL": {
+          "episodes": 127,
+          "episodes_detected": 73,
+          "episode_recall": 0.5748031496062992,
+          "row_precision": 0.48860759493670886,
+          "row_recall": 0.13148034607262074,
+          "row_f1": 0.20720382199796017,
+          "mean_delay_ticks": 2.3698630136986303,
+          "chance_episode_recall": null
+        },
+        "EASY": {
+          "episodes": 55,
+          "episodes_detected": 55,
+          "episode_recall": 1.0,
+          "row_precision": 0.47830578512396693,
+          "row_recall": 0.2774116237267825,
+          "row_f1": 0.3511566173682215,
+          "mean_delay_ticks": 0.05454545454545454,
+          "chance_episode_recall": null
+        },
+        "SUBTLE": {
+          "episodes": 72,
+          "episodes_detected": 18,
+          "episode_recall": 0.25,
+          "row_precision": 0.037178265014299335,
+          "row_recall": 0.009746345120579782,
+          "row_f1": 0.015444015444015444,
+          "mean_delay_ticks": 9.444444444444445,
+          "chance_episode_recall": null
+        },
+        "SPIKE": {
+          "episodes": 28,
+          "episodes_detected": 16,
+          "episode_recall": 0.5714285714285714,
+          "row_precision": 0.13859275053304904,
+          "row_recall": 0.4520166898470097,
+          "row_f1": 0.2121409921671018,
+          "mean_delay_ticks": 2.3125,
+          "chance_episode_recall": null
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 26,
+          "episodes_detected": 15,
+          "episode_recall": 0.5769230769230769,
+          "row_precision": 0.15018931426167437,
+          "row_recall": 0.11420345489443379,
+          "row_f1": 0.1297474105033618,
+          "mean_delay_ticks": 2.2666666666666666,
+          "chance_episode_recall": null
+        },
+        "DRIFT": {
+          "episodes": 22,
+          "episodes_detected": 12,
+          "episode_recall": 0.5454545454545454,
+          "row_precision": 0.1625207296849088,
+          "row_recall": 0.06941738976447671,
+          "row_f1": 0.09728254125822061,
+          "mean_delay_ticks": 0.16666666666666666,
+          "chance_episode_recall": null
+        },
+        "VARIANCE": {
+          "episodes": 23,
+          "episodes_detected": 17,
+          "episode_recall": 0.7391304347826086,
+          "row_precision": 0.1632145816072908,
+          "row_recall": 0.12850619699934768,
+          "row_f1": 0.14379562043795618,
+          "mean_delay_ticks": 5.588235294117647,
+          "chance_episode_recall": null
+        },
+        "CORRELATED": {
+          "episodes": 28,
+          "episodes_detected": 13,
+          "episode_recall": 0.4642857142857143,
+          "row_precision": 0.1861402095084609,
+          "row_recall": 0.21782178217821782,
+          "row_f1": 0.20073864870736477,
+          "mean_delay_ticks": 0.38461538461538464,
+          "chance_episode_recall": null
+        }
+      },
+      "L2-budget": {
+        "ALL": {
+          "episodes": 127,
+          "episodes_detected": 28,
+          "episode_recall": 0.2204724409448819,
+          "row_precision": 0.7542857142857143,
+          "row_recall": 0.008992438176987532,
+          "row_f1": 0.017772990440285442,
+          "mean_delay_ticks": 18.928571428571427,
+          "chance_episode_recall": null
+        },
+        "EASY": {
+          "episodes": 55,
+          "episodes_detected": 23,
+          "episode_recall": 0.41818181818181815,
+          "row_precision": 0.7470588235294118,
+          "row_recall": 0.01902336728579988,
+          "row_f1": 0.03710195734735612,
+          "mean_delay_ticks": 18.26086956521739,
+          "chance_episode_recall": null
+        },
+        "SUBTLE": {
+          "episodes": 72,
+          "episodes_detected": 5,
+          "episode_recall": 0.06944444444444445,
+          "row_precision": 0.10416666666666667,
+          "row_recall": 0.0006247657128576784,
+          "row_f1": 0.001242081728977767,
+          "mean_delay_ticks": 22.0,
+          "chance_episode_recall": null
+        },
+        "SPIKE": {
+          "episodes": 28,
+          "episodes_detected": 2,
+          "episode_recall": 0.07142857142857142,
+          "row_precision": 0.10416666666666667,
+          "row_recall": 0.006954102920723227,
+          "row_f1": 0.01303780964797914,
+          "mean_delay_ticks": 8.0,
+          "chance_episode_recall": null
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 26,
+          "episodes_detected": 3,
+          "episode_recall": 0.11538461538461539,
+          "row_precision": 0.0851063829787234,
+          "row_recall": 0.0012795905310300703,
+          "row_f1": 0.002521273242987709,
+          "mean_delay_ticks": 36.333333333333336,
+          "chance_episode_recall": null
+        },
+        "DRIFT": {
+          "episodes": 22,
+          "episodes_detected": 4,
+          "episode_recall": 0.18181818181818182,
+          "row_precision": 0.21818181818181817,
+          "row_recall": 0.0021250221356472463,
+          "row_f1": 0.004209049456331112,
+          "mean_delay_ticks": 24.5,
+          "chance_episode_recall": null
+        },
+        "VARIANCE": {
+          "episodes": 23,
+          "episodes_detected": 5,
+          "episode_recall": 0.21739130434782608,
+          "row_precision": 0.10416666666666667,
+          "row_recall": 0.0016307893020221786,
+          "row_f1": 0.0032113037893384713,
+          "mean_delay_ticks": 44.4,
+          "chance_episode_recall": null
+        },
+        "CORRELATED": {
+          "episodes": 28,
+          "episodes_detected": 14,
+          "episode_recall": 0.5,
+          "row_precision": 0.7114093959731543,
+          "row_recall": 0.04997642621404998,
+          "row_f1": 0.0933920704845815,
+          "mean_delay_ticks": 6.071428571428571,
+          "chance_episode_recall": null
+        }
+      }
+    }
+  },
+  "test": {
+    "metrics": {
+      "L0": {
+        "ALL": {
+          "episodes": 194,
+          "episodes_detected": 70,
+          "episode_recall": 0.36082474226804123,
+          "row_precision": 1.0,
+          "row_recall": 0.19006068122425476,
+          "row_f1": 0.3194134286139646,
+          "mean_delay_ticks": 16.62857142857143,
+          "chance_episode_recall": 0.0
+        },
+        "EASY": {
+          "episodes": 86,
+          "episodes_detected": 70,
+          "episode_recall": 0.813953488372093,
+          "row_precision": 1.0,
+          "row_recall": 0.4323425692695214,
+          "row_f1": 0.6036859876195835,
+          "mean_delay_ticks": 16.62857142857143,
+          "chance_episode_recall": 0.0
+        },
+        "SUBTLE": {
+          "episodes": 108,
+          "episodes_detected": 0,
+          "episode_recall": 0.0,
+          "row_precision": 0.0,
+          "row_recall": 0.0,
+          "row_f1": 0.0,
+          "mean_delay_ticks": null,
+          "chance_episode_recall": 0.0
+        },
+        "SPIKE": {
+          "episodes": 34,
+          "episodes_detected": 13,
+          "episode_recall": 0.38235294117647056,
+          "row_precision": 1.0,
+          "row_recall": 0.16248506571087215,
+          "row_f1": 0.2795477903391573,
+          "mean_delay_ticks": 1.6923076923076923,
+          "chance_episode_recall": 0.0
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 35,
+          "episodes_detected": 13,
+          "episode_recall": 0.37142857142857144,
+          "row_precision": 1.0,
+          "row_recall": 0.1397539911018058,
+          "row_f1": 0.24523536165327212,
+          "mean_delay_ticks": 10.846153846153847,
+          "chance_episode_recall": 0.0
+        },
+        "DRIFT": {
+          "episodes": 40,
+          "episodes_detected": 12,
+          "episode_recall": 0.3,
+          "row_precision": 1.0,
+          "row_recall": 0.19181237566746936,
+          "row_f1": 0.3218835104981112,
+          "mean_delay_ticks": 71.41666666666667,
+          "chance_episode_recall": 0.0
+        },
+        "VARIANCE": {
+          "episodes": 39,
+          "episodes_detected": 17,
+          "episode_recall": 0.4358974358974359,
+          "row_precision": 1.0,
+          "row_recall": 0.2124440656296612,
+          "row_f1": 0.35043936731107206,
+          "mean_delay_ticks": 7.0588235294117645,
+          "chance_episode_recall": 0.0
+        },
+        "CORRELATED": {
+          "episodes": 46,
+          "episodes_detected": 15,
+          "episode_recall": 0.32608695652173914,
+          "row_precision": 1.0,
+          "row_recall": 0.21551020408163266,
+          "row_f1": 0.3546004029550034,
+          "mean_delay_ticks": 1.6,
+          "chance_episode_recall": 0.0
+        }
+      },
+      "L1-F1": {
+        "ALL": {
+          "episodes": 194,
+          "episodes_detected": 157,
+          "episode_recall": 0.8092783505154639,
+          "row_precision": 0.39009057005860415,
+          "row_recall": 0.1621561766399433,
+          "row_f1": 0.22908453788874286,
+          "mean_delay_ticks": 7.318471337579618,
+          "chance_episode_recall": 0.4688947348091431
+        },
+        "EASY": {
+          "episodes": 86,
+          "episodes_detected": 86,
+          "episode_recall": 1.0,
+          "row_precision": 0.3510204081632653,
+          "row_recall": 0.31193954659949624,
+          "row_f1": 0.3303280874899973,
+          "mean_delay_ticks": 0.06976744186046512,
+          "chance_episode_recall": 0.46341686358383777
+        },
+        "SUBTLE": {
+          "episodes": 108,
+          "episodes_detected": 71,
+          "episode_recall": 0.6574074074074074,
+          "row_precision": 0.0898394021307044,
+          "row_recall": 0.044656971229845084,
+          "row_f1": 0.05965894092180984,
+          "mean_delay_ticks": 16.098591549295776,
+          "chance_episode_recall": 0.47325674337744195
+        },
+        "SPIKE": {
+          "episodes": 34,
+          "episodes_detected": 24,
+          "episode_recall": 0.7058823529411765,
+          "row_precision": 0.07453516572352466,
+          "row_recall": 0.5507765830346476,
+          "row_f1": 0.13130162346909713,
+          "mean_delay_ticks": 1.4583333333333333,
+          "chance_episode_recall": 0.14580231872581012
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 35,
+          "episodes_detected": 32,
+          "episode_recall": 0.9142857142857143,
+          "row_precision": 0.11242053031477749,
+          "row_recall": 0.18974090552211462,
+          "row_f1": 0.14118792599805258,
+          "mean_delay_ticks": 5.625,
+          "chance_episode_recall": 0.49239742536775455
+        },
+        "DRIFT": {
+          "episodes": 40,
+          "episodes_detected": 31,
+          "episode_recall": 0.775,
+          "row_precision": 0.10478573662808884,
+          "row_recall": 0.07014972254214219,
+          "row_f1": 0.08403888366259017,
+          "mean_delay_ticks": 20.838709677419356,
+          "chance_episode_recall": 0.7561693824147266
+        },
+        "VARIANCE": {
+          "episodes": 39,
+          "episodes_detected": 37,
+          "episode_recall": 0.9487179487179487,
+          "row_precision": 0.1427287704058709,
+          "row_recall": 0.20306839974430002,
+          "row_f1": 0.16763412489006158,
+          "mean_delay_ticks": 4.405405405405405,
+          "chance_episode_recall": 0.5219649731232444
+        },
+        "CORRELATED": {
+          "episodes": 46,
+          "episodes_detected": 33,
+          "episode_recall": 0.717391304347826,
+          "row_precision": 0.12956204379562045,
+          "row_recall": 0.23183673469387756,
+          "row_f1": 0.16622768510389233,
+          "mean_delay_ticks": 3.787878787878788,
+          "chance_episode_recall": 0.3950213169571569
+        }
+      },
+      "L2-F1": {
+        "ALL": {
+          "episodes": 194,
+          "episodes_detected": 192,
+          "episode_recall": 0.9896907216494846,
+          "row_precision": 0.24690965712288285,
+          "row_recall": 0.3441555565398414,
+          "row_f1": 0.2875328423935166,
+          "mean_delay_ticks": 3.796875,
+          "chance_episode_recall": 0.9510575903969475
+        },
+        "EASY": {
+          "episodes": 86,
+          "episodes_detected": 86,
+          "episode_recall": 1.0,
+          "row_precision": 0.19832893579595426,
+          "row_recall": 0.5907304785894206,
+          "row_f1": 0.2969584926684732,
+          "mean_delay_ticks": 0.2441860465116279,
+          "chance_episode_recall": 0.9523428752883214
+        },
+        "SUBTLE": {
+          "episodes": 108,
+          "episodes_detected": 106,
+          "episode_recall": 0.9814814814814815,
+          "row_precision": 0.07447473248457392,
+          "row_recall": 0.1507271577616187,
+          "row_f1": 0.09969156777667415,
+          "mean_delay_ticks": 6.679245283018868,
+          "chance_episode_recall": 0.9500341227982607
+        },
+        "SPIKE": {
+          "episodes": 34,
+          "episodes_detected": 32,
+          "episode_recall": 0.9411764705882353,
+          "row_precision": 0.01561786085150571,
+          "row_recall": 0.44922341696535245,
+          "row_f1": 0.030186255619781634,
+          "mean_delay_ticks": 2.34375,
+          "chance_episode_recall": 0.7625403716453364
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 35,
+          "episodes_detected": 35,
+          "episode_recall": 1.0,
+          "row_precision": 0.04126380517011206,
+          "row_recall": 0.2669458257000785,
+          "row_f1": 0.07147862648913804,
+          "mean_delay_ticks": 3.057142857142857,
+          "chance_episode_recall": 0.9946761350974199
+        },
+        "DRIFT": {
+          "episodes": 40,
+          "episodes_detected": 40,
+          "episode_recall": 1.0,
+          "row_precision": 0.09848600121728546,
+          "row_recall": 0.27107109203224794,
+          "row_f1": 0.14447947766399732,
+          "mean_delay_ticks": 10.0,
+          "chance_episode_recall": 0.9999400210365472
+        },
+        "VARIANCE": {
+          "episodes": 39,
+          "episodes_detected": 39,
+          "episode_recall": 1.0,
+          "row_precision": 0.07400461063572071,
+          "row_recall": 0.40357979970168334,
+          "row_f1": 0.1250742917519646,
+          "mean_delay_ticks": 1.5897435897435896,
+          "chance_episode_recall": 0.9923404744693807
+        },
+        "CORRELATED": {
+          "episodes": 46,
+          "episodes_detected": 46,
+          "episode_recall": 1.0,
+          "row_precision": 0.07389605314576006,
+          "row_recall": 0.5145578231292517,
+          "row_f1": 0.12923287203143685,
+          "mean_delay_ticks": 1.8478260869565217,
+          "chance_episode_recall": 0.9797012136280202
+        }
+      },
+      "L1-budget": {
+        "ALL": {
+          "episodes": 194,
+          "episodes_detected": 112,
+          "episode_recall": 0.5773195876288659,
+          "row_precision": 0.5117489090298758,
+          "row_recall": 0.1350489436151836,
+          "row_f1": 0.21370247065007886,
+          "mean_delay_ticks": 4.053571428571429,
+          "chance_episode_recall": 0.04473682893406709
+        },
+        "EASY": {
+          "episodes": 86,
+          "episodes_detected": 86,
+          "episode_recall": 1.0,
+          "row_precision": 0.5009435580717104,
+          "row_recall": 0.2942065491183879,
+          "row_f1": 0.3706995048876476,
+          "mean_delay_ticks": 0.10465116279069768,
+          "chance_episode_recall": 0.044340346170046806
+        },
+        "SUBTLE": {
+          "episodes": 108,
+          "episodes_detected": 26,
+          "episode_recall": 0.24074074074074073,
+          "row_precision": 0.04246214614878209,
+          "row_recall": 0.010196016440088523,
+          "row_f1": 0.01644359464627151,
+          "mean_delay_ticks": 17.115384615384617,
+          "chance_episode_recall": 0.04505254669060174
+        },
+        "SPIKE": {
+          "episodes": 34,
+          "episodes_detected": 19,
+          "episode_recall": 0.5588235294117647,
+          "row_precision": 0.11419001218026796,
+          "row_recall": 0.44802867383512546,
+          "row_f1": 0.18199466148992963,
+          "mean_delay_ticks": 1.5263157894736843,
+          "chance_episode_recall": 0.00974450212458537
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 35,
+          "episodes_detected": 24,
+          "episode_recall": 0.6857142857142857,
+          "row_precision": 0.172874609041797,
+          "row_recall": 0.15912064904475268,
+          "row_f1": 0.16571272826383213,
+          "mean_delay_ticks": 1.5833333333333333,
+          "chance_episode_recall": 0.042418197933110885
+        },
+        "DRIFT": {
+          "episodes": 40,
+          "episodes_detected": 17,
+          "episode_recall": 0.425,
+          "row_precision": 0.1558328496807893,
+          "row_recall": 0.05622447911213486,
+          "row_f1": 0.08263445410479342,
+          "mean_delay_ticks": 8.352941176470589,
+          "chance_episode_recall": 0.09018434314953366
+        },
+        "VARIANCE": {
+          "episodes": 39,
+          "episodes_detected": 31,
+          "episode_recall": 0.7948717948717948,
+          "row_precision": 0.20649208947081288,
+          "row_recall": 0.1613040698913275,
+          "row_f1": 0.18112214379710492,
+          "mean_delay_ticks": 7.741935483870968,
+          "chance_episode_recall": 0.04662191919922296
+        },
+        "CORRELATED": {
+          "episodes": 46,
+          "episodes_detected": 21,
+          "episode_recall": 0.45652173913043476,
+          "row_precision": 0.20972561803857648,
+          "row_recall": 0.21006802721088436,
+          "row_f1": 0.20989668297988037,
+          "mean_delay_ticks": 0.23809523809523808,
+          "chance_episode_recall": 0.031247092142678005
+        }
+      },
+      "L2-budget": {
+        "ALL": {
+          "episodes": 194,
+          "episodes_detected": 53,
+          "episode_recall": 0.27319587628865977,
+          "row_precision": 0.8054794520547945,
+          "row_recall": 0.013022102139345352,
+          "row_f1": 0.025629849184901056,
+          "mean_delay_ticks": 36.9811320754717,
+          "chance_episode_recall": 0.02153276812188515
+        },
+        "EASY": {
+          "episodes": 86,
+          "episodes_detected": 45,
+          "episode_recall": 0.5232558139534884,
+          "row_precision": 0.7994350282485876,
+          "row_recall": 0.028513853904282117,
+          "row_f1": 0.05506372215196031,
+          "mean_delay_ticks": 37.022222222222226,
+          "chance_episode_recall": 0.021347840357924662
+        },
+        "SUBTLE": {
+          "episodes": 108,
+          "episodes_detected": 8,
+          "episode_recall": 0.07407407407407407,
+          "row_precision": 0.13414634146341464,
+          "row_recall": 0.0008694277584571609,
+          "row_f1": 0.0017276582377885974,
+          "mean_delay_ticks": 36.75,
+          "chance_episode_recall": 0.02168002541540924
+        },
+        "SPIKE": {
+          "episodes": 34,
+          "episodes_detected": 4,
+          "episode_recall": 0.11764705882352941,
+          "row_precision": 0.06578947368421052,
+          "row_recall": 0.005973715651135006,
+          "row_f1": 0.01095290251916758,
+          "mean_delay_ticks": 9.75,
+          "chance_episode_recall": 0.004618895587165393
+        },
+        "LEVEL_SHIFT": {
+          "episodes": 35,
+          "episodes_detected": 5,
+          "episode_recall": 0.14285714285714285,
+          "row_precision": 0.06578947368421052,
+          "row_recall": 0.0013085579691180318,
+          "row_f1": 0.002566076469078778,
+          "mean_delay_ticks": 34.8,
+          "chance_episode_recall": 0.02030359527612374
+        },
+        "DRIFT": {
+          "episodes": 40,
+          "episodes_detected": 9,
+          "episode_recall": 0.225,
+          "row_precision": 0.21978021978021978,
+          "row_recall": 0.0020940215684221546,
+          "row_f1": 0.004148516905206389,
+          "mean_delay_ticks": 113.66666666666667,
+          "chance_episode_recall": 0.04381129845979338
+        },
+        "VARIANCE": {
+          "episodes": 39,
+          "episodes_detected": 12,
+          "episode_recall": 0.3076923076923077,
+          "row_precision": 0.2828282828282828,
+          "row_recall": 0.00596633283613893,
+          "row_f1": 0.011686143572621033,
+          "mean_delay_ticks": 47.25,
+          "chance_episode_recall": 0.02234914752970085
+        },
+        "CORRELATED": {
+          "episodes": 46,
+          "episodes_detected": 23,
+          "episode_recall": 0.5,
+          "row_precision": 0.7687296416938111,
+          "row_recall": 0.06421768707482993,
+          "row_f1": 0.1185334003013561,
+          "mean_delay_ticks": 6.826086956521739,
+          "chance_episode_recall": 0.014904783455819493
+        }
+      }
+    },
+    "false_alarms": {
+      "L0": {
+        "hours": 24.0,
+        "alarms": 0,
+        "alarms_per_hour": 0.0,
+        "flagged_service_ticks_per_hour": 0.0
+      },
+      "L1-F1": {
+        "hours": 24.0,
+        "alarms": 570,
+        "alarms_per_hour": 23.75,
+        "flagged_service_ticks_per_hour": 37.0
+      },
+      "L2-F1": {
+        "hours": 24.0,
+        "alarms": 7309,
+        "alarms_per_hour": 304.5416666666667,
+        "flagged_service_ticks_per_hour": 348.25
+      },
+      "L1-budget": {
+        "hours": 24.0,
+        "alarms": 38,
+        "alarms_per_hour": 1.5833333333333333,
+        "flagged_service_ticks_per_hour": 2.2916666666666665
+      },
+      "L2-budget": {
+        "hours": 24.0,
+        "alarms": 26,
+        "alarms_per_hour": 1.0833333333333333,
+        "flagged_service_ticks_per_hour": 1.0833333333333333
+      }
+    }
+  },
+  "generated_at": "2026-10-09 18:40 UTC",
+  "runtime_s": 59.31907105445862,
+  "args": {
+    "train_seeds": [
+      101,
+      102,
+      103
+    ],
+    "val_seeds": [
+      201,
+      202
+    ],
+    "val_normal_seed": 203,
+    "test_seeds": [
+      301,
+      302,
+      303
+    ],
+    "test_normal_seed": 304,
+    "days": 1,
+    "alarm_budget": 1.0,
+    "data_dir": "/work/datasets/phase4",
+    "doc_out": "/work/docs/evaluation/phase4-experiments.md",
+    "json_out": "/work/docs/evaluation/phase4-results.json",
+    "config_out": "/work/ml-service/app/model_config.json"
+  }
+}
