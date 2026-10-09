@@ -6,8 +6,16 @@ with root-cause heuristics and an AI copilot. Direct successor to SentinelCore, 
 its fixed-threshold, single-signal monitoring with ML-driven, multi-signal, correlated
 observability.
 
-See [`IntelliGuard_Project_Context.md`](IntelliGuard_Project_Context.md) for the full
-problem statement, scope tiers, and architecture decisions.
+## Project context
+
+- **Problem**: SentinelCore's monitoring was fixed-threshold and single-signal. IntelliGuard
+  replaces it with ML-driven, multi-signal, correlated observability across metrics, logs,
+  traces, and security events.
+- **Scope**: delivered in phases, from foundation and telemetry through anomaly detection,
+  correlation, an incident workspace with a copilot, and evaluation — see [Roadmap](#roadmap).
+- **Architecture decisions**: the frontend talks only to `backend-core`; `ml-service` is an
+  internal service for anomaly detection, risk scoring, correlation, and the copilot;
+  PostgreSQL is the database; tracing uses OpenTelemetry + Jaeger — see [Stack](#stack).
 
 ## Stack
 
