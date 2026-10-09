@@ -1,7 +1,7 @@
-import json
 import random
 
-# (mean, std, min_clamp, max_clamp) for baseline (no active anomaly) generation.
+# (mean, std, min_clamp, max_clamp) for baseline (no active anomaly) generation. The clamp
+# range is the hard support of normal data: a normal value can never fall outside it.
 METRIC_BASELINES = {
     "CPU": (25.0, 4.0, 1.0, 60.0),
     "MEMORY": (45.0, 6.0, 5.0, 70.0),
@@ -11,10 +11,13 @@ METRIC_BASELINES = {
     "ERROR_RATE": (0.4, 0.3, 0.0, 2.0),
 }
 
-# During an active anomaly, the value is drawn from a clearly separated range instead of
-# a multiplier - baselines vary too much in scale (0.4% error rate vs 70ms latency) for one
-# multiplier to make sense everywhere, and a distinct range is what makes the ground-truth
-# labels actually separable later for the Phase 7 precision/recall evaluation.
+# Fixed generation order - part of the determinism contract (same seed -> same draws).
+METRIC_TYPES = list(METRIC_BASELINES)
+
+# Legacy (Phase 2) anomaly ranges, still used verbatim by SCENARIO_MODE=demo so the existing
+# anomaly_schedule.json demo behaves exactly as before. During an active anomaly the value is
+# drawn from a clearly separated range instead of a multiplier - baselines vary too much in
+# scale (0.4% error rate vs 70ms latency) for one multiplier to make sense everywhere.
 ANOMALY_TARGET_RANGES = {
     "CPU": {"low": (60, 75), "medium": (75, 90), "high": (90, 99)},
     "MEMORY": {"low": (65, 78), "medium": (78, 90), "high": (90, 98)},
@@ -42,6 +45,10 @@ ANOMALY_LOG_TEMPLATES = {
     "error_burst": ("ERROR", "Request failures spiking"),
 }
 
+# Same messages, keyed by the metric an episode affects (scenario episodes aren't named
+# after a legacy anomaly_type).
+METRIC_LOG_TEMPLATES = {ANOMALY_METRIC_MAP[k]: v for k, v in ANOMALY_LOG_TEMPLATES.items()}
+
 BASELINE_LOG_MESSAGES = [
     "heartbeat ok",
     "request processed",
@@ -49,63 +56,50 @@ BASELINE_LOG_MESSAGES = [
     "scheduled job completed",
 ]
 
-
-def load_schedule(path):
-    with open(path) as f:
-        data = json.load(f)
-    return {
-        "metric_anomalies": data.get("metric_anomalies", []),
-        "security_events": data.get("security_events", []),
-    }
+# Per-tick probability of an anomaly log line while an episode is active on a service. SUBTLE
+# episodes log rarely, so the log stream doesn't give away an injection the metrics hide.
+ANOMALY_LOG_PROBABILITY = {"EASY": 0.7, "SUBTLE": 0.2}
+BASELINE_LOG_PROBABILITY = 0.3
 
 
-def _active_entries(entries, elapsed_minutes, service_name):
-    return [
-        e
-        for e in entries
-        if e["service"] == service_name
-        and e["start_minute"] <= elapsed_minutes < e["start_minute"] + e["duration_minutes"]
-    ]
+def rng_stream(seed, *parts):
+    """An independent, reproducible random stream for one purpose (e.g. one service's values).
+
+    Separate streams mean that, for example, adding a service or a security event never shifts
+    the values drawn for anything else. Seeding random.Random with a str is deterministic across
+    processes (it hashes with SHA-512, unaffected by PYTHONHASHSEED)."""
+    return random.Random(":".join([str(seed)] + [str(p) for p in parts]))
 
 
-def active_metric_anomalies(schedule, elapsed_minutes, service_name):
-    return _active_entries(schedule["metric_anomalies"], elapsed_minutes, service_name)
+def service_jitter(seed, service_name):
+    """Small per-service baseline offset so services don't all look identical. Derived from the
+    run seed (not just the service name), so a different seed gives different baselines."""
+    return rng_stream(seed, "jitter", service_name).uniform(0.85, 1.15)
 
 
-# Small, deterministic per-service jitter so services don't all look identical, without
-# needing to persist any state between ticks.
-def _service_jitter(service_name):
-    rng = random.Random(service_name)
-    return rng.uniform(0.85, 1.15)
+def baseline_stats(metric_type, jitter):
+    """(mean, std, lo, hi) of normal data for one service - the reference every scenario is
+    defined against."""
+    mean, std, lo, hi = METRIC_BASELINES[metric_type]
+    return mean * jitter, std, lo, hi
 
 
-def generate_metrics_for_service(service_name, elapsed_minutes, schedule):
-    active = {ANOMALY_METRIC_MAP[a["anomaly_type"]]: a for a in active_metric_anomalies(schedule, elapsed_minutes, service_name)}
-    jitter = _service_jitter(service_name)
-
-    values = {}
-    for metric_type, (mean, std, lo, hi) in METRIC_BASELINES.items():
-        anomaly = active.get(metric_type)
-        if anomaly:
-            low, high = ANOMALY_TARGET_RANGES[metric_type][anomaly["magnitude"]]
-            values[metric_type] = round(random.uniform(low, high), 2)
-        else:
-            value = random.gauss(mean * jitter, std)
-            values[metric_type] = round(max(lo, min(hi, value)), 2)
-
-    return values
+def normal_value(rng, metric_type, jitter):
+    mean, std, lo, hi = baseline_stats(metric_type, jitter)
+    return round(max(lo, min(hi, rng.gauss(mean, std))), 2)
 
 
-def generate_logs_for_service(service_name, elapsed_minutes, schedule):
+def generate_logs(rng, active_episodes):
+    """Log lines for one service on one tick. `active_episodes` are the episodes currently
+    injecting into this service (possibly none)."""
     logs = []
-    active = active_metric_anomalies(schedule, elapsed_minutes, service_name)
+    for episode in active_episodes:
+        if rng.random() < ANOMALY_LOG_PROBABILITY[episode.difficulty]:
+            logs.append(METRIC_LOG_TEMPLATES[episode.primary_metric])
 
-    for anomaly in active:
-        if random.random() < 0.7:
-            level, message = ANOMALY_LOG_TEMPLATES[anomaly["anomaly_type"]]
-            logs.append((level, message))
-
-    if not active and random.random() < 0.3:
-        logs.append(("INFO", random.choice(BASELINE_LOG_MESSAGES)))
+    # EASY episodes (including every demo episode) suppress routine INFO lines, as the
+    # original simulator did; SUBTLE ones keep them so the log stream doesn't give them away.
+    if not any(e.difficulty == "EASY" for e in active_episodes) and rng.random() < BASELINE_LOG_PROBABILITY:
+        logs.append(("INFO", rng.choice(BASELINE_LOG_MESSAGES)))
 
     return logs

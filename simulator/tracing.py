@@ -1,4 +1,3 @@
-import random
 import time
 
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -6,8 +5,6 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Status, StatusCode
-
-from telemetry_generator import active_metric_anomalies
 
 TRACE_SERVICE_NAMES = [
     "frontend-web",
@@ -33,24 +30,24 @@ def build_tracers(otlp_endpoint):
     return tracers
 
 
-def _span_duration_seconds(service_name, elapsed_minutes, schedule, baseline=0.02):
-    """Real (short) sleep so span durations look realistic - stretched during a latency_spike
-    or error_burst anomaly on that service, capped so one tick never runs long."""
-    anomalies = {a["anomaly_type"] for a in active_metric_anomalies(schedule, elapsed_minutes, service_name)}
-    if "latency_spike" in anomalies:
-        return min(random.uniform(0.15, 0.35), 0.35)
-    if "error_burst" in anomalies:
-        return min(random.uniform(0.08, 0.2), 0.2)
-    return random.uniform(baseline, baseline * 3)
+def _span_duration_seconds(engine, service_name, ts, baseline=0.02):
+    """Real (short) sleep so span durations look realistic - stretched while a LATENCY or
+    ERROR_RATE injection is active on that service, capped so one tick never runs long.
+    Durations come from the engine's seeded tracing stream."""
+    rng = engine.trace_rng
+    active = engine.active_metric_types(service_name, ts)
+    if "LATENCY" in active:
+        return min(rng.uniform(0.15, 0.35), 0.35)
+    if "ERROR_RATE" in active:
+        return min(rng.uniform(0.08, 0.2), 0.2)
+    return rng.uniform(baseline, baseline * 3)
 
 
-def _traced_call(tracers, service_name, span_name, elapsed_minutes, schedule, on_span=None):
-    anomalies = {a["anomaly_type"] for a in active_metric_anomalies(schedule, elapsed_minutes, service_name)}
-
+def _traced_call(tracers, engine, ts, service_name, span_name, on_span=None):
     with tracers[service_name].start_as_current_span(span_name) as span:
-        time.sleep(_span_duration_seconds(service_name, elapsed_minutes, schedule))
+        time.sleep(_span_duration_seconds(engine, service_name, ts))
 
-        if "error_burst" in anomalies:
+        if "ERROR_RATE" in engine.active_metric_types(service_name, ts):
             span.set_status(Status(StatusCode.ERROR, "downstream error burst"))
             span.record_exception(RuntimeError(f"{service_name} error burst"))
 
@@ -58,7 +55,7 @@ def _traced_call(tracers, service_name, span_name, elapsed_minutes, schedule, on
             on_span()
 
 
-def simulate_call_chain(tracers, elapsed_minutes, schedule):
+def simulate_call_chain(tracers, engine, ts):
     """One synthetic request per tick through the full topology:
     frontend-web -> api-gateway -> {auth-service -> user-db,
                                      order-service -> {order-db,
@@ -66,28 +63,24 @@ def simulate_call_chain(tracers, elapsed_minutes, schedule):
     """
 
     def call_order_service():
-        _traced_call(tracers, "order-db", "order-db.insert_order", elapsed_minutes, schedule)
+        _traced_call(tracers, engine, ts, "order-db", "order-db.insert_order")
         _traced_call(
-            tracers, "inventory-service", "inventory-service.check_stock", elapsed_minutes, schedule,
-            on_span=lambda: _traced_call(
-                tracers, "inventory-db", "inventory-db.query_stock", elapsed_minutes, schedule
-            ),
+            tracers, engine, ts, "inventory-service", "inventory-service.check_stock",
+            on_span=lambda: _traced_call(tracers, engine, ts, "inventory-db", "inventory-db.query_stock"),
         )
 
     with tracers["frontend-web"].start_as_current_span("frontend-web.handle_request"):
-        time.sleep(_span_duration_seconds("frontend-web", elapsed_minutes, schedule))
+        time.sleep(_span_duration_seconds(engine, "frontend-web", ts))
 
         with tracers["api-gateway"].start_as_current_span("api-gateway.route_request"):
-            time.sleep(_span_duration_seconds("api-gateway", elapsed_minutes, schedule))
+            time.sleep(_span_duration_seconds(engine, "api-gateway", ts))
 
             _traced_call(
-                tracers, "auth-service", "auth-service.authenticate", elapsed_minutes, schedule,
-                on_span=lambda: _traced_call(
-                    tracers, "user-db", "user-db.query_user", elapsed_minutes, schedule
-                ),
+                tracers, engine, ts, "auth-service", "auth-service.authenticate",
+                on_span=lambda: _traced_call(tracers, engine, ts, "user-db", "user-db.query_user"),
             )
 
             _traced_call(
-                tracers, "order-service", "order-service.create_order", elapsed_minutes, schedule,
+                tracers, engine, ts, "order-service", "order-service.create_order",
                 on_span=call_order_service,
             )

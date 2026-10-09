@@ -65,6 +65,10 @@ services:
       OTLP_ENDPOINT: jaeger:4317
       TICK_SECONDS: "5"
       SIMULATOR_ADMIN_PASSWORD: ${INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD}
+      # demo (default, the Phase 2/3 schedule) | continuous | normal
+      SCENARIO_MODE: ${INTELLIGUARD_SCENARIO_MODE:-demo}
+      # Blank -> a seed is generated, logged, and stored with every ground-truth label.
+      SIMULATOR_SEED: ${INTELLIGUARD_SIMULATOR_SEED:-}
 
 volumes:
   pgdata:

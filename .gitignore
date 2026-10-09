@@ -33,3 +33,6 @@ Thumbs.db
 
 # --- Docker ---
 infra/pgdata/
+
+# --- Generated datasets (python -m simulator.offline) ---
+datasets/

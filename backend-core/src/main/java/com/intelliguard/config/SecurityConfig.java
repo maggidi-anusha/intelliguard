@@ -69,6 +69,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/security-events")
                         .hasRole("ADMIN")
 
+                        // GROUND TRUTH (simulator injection labels) - READ and WRITE: ADMIN only.
+                        // Exposing them to VIEWER/USER would let a dashboard user see which
+                        // anomalies were injected, which would contaminate any evaluation.
+                        .requestMatchers("/api/ground-truth", "/api/ground-truth/**")
+                        .hasRole("ADMIN")
+
                         // SERVICES - READ: VIEWER, USER, ADMIN (also covers GET on the nested
                         // /metrics and /logs paths - same read access as the service itself)
                         .requestMatchers(HttpMethod.GET, "/api/services/**")
