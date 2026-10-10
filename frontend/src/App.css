@@ -243,7 +243,7 @@ tbody tr.selected {
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 12px;
 
   @media (max-width: 1024px) {
@@ -275,6 +275,13 @@ tbody tr.selected {
 .summary-card-healthy .summary-card-value { color: #067647; }
 .summary-card-degraded .summary-card-value { color: #b54708; }
 .summary-card-unknown .summary-card-value { color: var(--text); opacity: 0.85; }
+.summary-card-at-risk .summary-card-value { color: #b42318; }
+
+.summary-card-note {
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.7;
+}
 
 /* ---- Metric history charts ---- */
 
@@ -418,4 +425,127 @@ tbody tr.selected {
   color: var(--text);
   opacity: 0.6;
   flex-shrink: 0;
+}
+
+/* ---- Risk (Phase 4) ---- */
+
+.risk-badge {
+  white-space: nowrap;
+}
+
+.risk-section {
+  margin-bottom: 8px;
+}
+
+.risk-now {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.risk-score-value {
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-h);
+}
+
+.risk-score-scale {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.risk-text-low { color: #067647; }
+.risk-text-medium { color: #b54708; }
+.risk-text-high { color: #b42318; }
+.risk-text-critical { color: #b42318; }
+
+.risk-notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #b54708;
+  border-radius: 6px;
+  color: #b54708;
+  font-size: 13px;
+}
+
+.risk-breakdown {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.risk-breakdown li {
+  display: grid;
+  grid-template-columns: 1.3fr 1.4fr 1.6fr 0.9fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-component-label {
+  color: var(--text-h);
+}
+
+.risk-component-input {
+  color: var(--text);
+}
+
+.risk-bar {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.risk-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.risk-component-points {
+  text-align: right;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+.risk-flags,
+.risk-caption {
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.risk-history {
+  margin: 8px 0;
+}
+
+/* ---- Anomalies tab (Phase 4) ---- */
+
+.anomalies-page {
+  margin: 20px 24px;
+}
+
+.anomalies-caption {
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.anomalies-table tr.anomaly-open {
+  background: rgba(181, 71, 8, 0.08);
+  font-weight: 500;
+}
+
+.anomalies-table tbody tr {
+  cursor: default;
+}
+
+.anomaly-detail {
+  font-size: 12px;
+  color: var(--text);
 }

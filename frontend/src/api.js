@@ -72,4 +72,18 @@ export const api = {
     const query = params.toString()
     return request(`/api/logs${query ? `?${query}` : ''}`, { token })
   },
+
+  // Phase 4 risk + detected anomalies (read-only; written by the backend's scoring job).
+  getRiskCurrent: (token) => request('/api/risk/current', { token }),
+
+  getRiskHistory: (token, serviceId, limit = 180) =>
+    request(`/api/risk/history?serviceId=${serviceId}&limit=${limit}`, { token }),
+
+  getAnomalies: (token, { serviceId, status } = {}) => {
+    const params = new URLSearchParams()
+    if (serviceId) params.set('serviceId', serviceId)
+    if (status) params.set('status', status)
+    const query = params.toString()
+    return request(`/api/anomalies${query ? `?${query}` : ''}`, { token })
+  },
 }

@@ -1,7 +1,9 @@
 // Aggregate counts for the Overview tab. Data comes from a single GET
 // /api/dashboard/summary call owned by Dashboard.jsx (not fetched here) so these totals and
 // the per-service health badges in ServiceList can never disagree with each other.
-export function SummaryCards({ summary, loading, error }) {
+// The "At risk" card comes from GET /api/risk/current instead (Phase 4); its own loading/error
+// state is shown inside that card, so a failing risk endpoint doesn't hide the other cards.
+export function SummaryCards({ summary, loading, error, risk, riskLoading, riskError }) {
   if (loading && !summary) {
     return (
       <section className="panel summary-panel">
@@ -33,6 +35,7 @@ export function SummaryCards({ summary, loading, error }) {
     { label: 'Unknown', value: summary.unknownServices, tone: 'unknown' },
     { label: `Logs (last ${summary.windowMinutes}m)`, value: summary.recentLogCount },
     { label: `Security events (last ${summary.windowMinutes}m)`, value: summary.recentSecurityEventCount },
+    atRiskCard(risk, riskLoading, riskError),
   ]
 
   return (
@@ -48,9 +51,26 @@ export function SummaryCards({ summary, loading, error }) {
           <div className={`summary-card${card.tone ? ` summary-card-${card.tone}` : ''}`} key={card.label}>
             <span className="summary-card-value">{card.value}</span>
             <span className="summary-card-label">{card.label}</span>
+            {card.note && <span className="summary-card-note">{card.note}</span>}
           </div>
         ))}
       </div>
     </section>
   )
+}
+
+function atRiskCard(risk, riskLoading, riskError) {
+  const label = 'At risk (HIGH/CRITICAL)'
+  if (!risk) {
+    return riskError
+      ? { label, value: '—', note: 'Risk unavailable', tone: 'unknown' }
+      : { label, value: riskLoading ? '…' : '—', tone: 'unknown' }
+  }
+  const atRisk = risk.filter((r) => r.level === 'HIGH' || r.level === 'CRITICAL').length
+  return {
+    label,
+    value: atRisk,
+    tone: atRisk > 0 ? 'at-risk' : 'healthy',
+    note: riskError ? 'Refresh failed - last known value' : undefined,
+  }
 }

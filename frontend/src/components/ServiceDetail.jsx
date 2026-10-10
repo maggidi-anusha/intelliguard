@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../AuthContext'
 import { api } from '../api'
 import { MetricChart } from './MetricChart'
+import { RiskPanel } from './RiskPanel'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -14,7 +15,7 @@ const METRIC_UNITS = {
   ERROR_RATE: '%',
 }
 
-export function ServiceDetail({ service }) {
+export function ServiceDetail({ service, risk, riskLoading, riskError }) {
   const { auth, handleAuthError } = useAuth()
   const [metrics, setMetrics] = useState([])
   const [logs, setLogs] = useState([])
@@ -81,6 +82,8 @@ export function ServiceDetail({ service }) {
         {service.type} &middot; {service.criticality}
         {service.hostname ? ` · ${service.hostname}` : ''}
       </p>
+
+      <RiskPanel service={service} risk={risk} riskLoading={riskLoading} riskError={riskError} />
 
       {error && <p className="error-text" role="alert">Failed to load telemetry: {error}</p>}
 

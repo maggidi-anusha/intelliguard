@@ -6,6 +6,7 @@ import { ServiceDetail } from './ServiceDetail'
 import { SecurityEventsPanel } from './SecurityEventsPanel'
 import { SummaryCards } from './SummaryCards'
 import { LogsPage } from './LogsPage'
+import { AnomaliesPage } from './AnomaliesPage'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -25,6 +26,11 @@ export function Dashboard() {
   const [dashboardSummary, setDashboardSummary] = useState(null)
   const [dashboardSummaryLoading, setDashboardSummaryLoading] = useState(true)
   const [dashboardSummaryError, setDashboardSummaryError] = useState(null)
+
+  // Phase 4 risk: polled separately so a failing risk endpoint never breaks the rest.
+  const [risk, setRisk] = useState(null)
+  const [riskLoading, setRiskLoading] = useState(true)
+  const [riskError, setRiskError] = useState(null)
 
   const loadServices = useCallback(async () => {
     try {
@@ -60,17 +66,31 @@ export function Dashboard() {
     }
   }, [auth.token, handleAuthError])
 
+  const loadRisk = useCallback(async () => {
+    try {
+      const data = await api.getRiskCurrent(auth.token)
+      setRisk(data)
+      setRiskError(null)
+    } catch (err) {
+      if (!handleAuthError(err)) setRiskError(err.message)
+    } finally {
+      setRiskLoading(false)
+    }
+  }, [auth.token, handleAuthError])
+
   useEffect(() => {
     loadServices()
     loadSecurityEvents()
     loadDashboardSummary()
+    loadRisk()
     const interval = setInterval(() => {
       loadServices()
       loadSecurityEvents()
       loadDashboardSummary()
+      loadRisk()
     }, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [loadServices, loadSecurityEvents, loadDashboardSummary])
+  }, [loadServices, loadSecurityEvents, loadDashboardSummary, loadRisk])
 
   const selectedService = services.find((s) => s.id === selectedServiceId) ?? null
 
@@ -83,6 +103,14 @@ export function Dashboard() {
     }
     return map
   }, [dashboardSummary])
+
+  const riskByServiceId = useMemo(() => {
+    const map = {}
+    for (const r of risk ?? []) {
+      map[r.serviceId] = r
+    }
+    return map
+  }, [risk])
 
   return (
     <div className="dashboard">
@@ -110,6 +138,13 @@ export function Dashboard() {
         >
           Logs
         </button>
+        <button
+          type="button"
+          className={activeTab === 'anomalies' ? 'active' : ''}
+          onClick={() => setActiveTab('anomalies')}
+        >
+          Anomalies
+        </button>
       </nav>
 
       {activeTab === 'overview' && (
@@ -119,6 +154,9 @@ export function Dashboard() {
               summary={dashboardSummary}
               loading={dashboardSummaryLoading}
               error={dashboardSummaryError}
+              risk={risk}
+              riskLoading={riskLoading}
+              riskError={riskError}
             />
           </div>
 
@@ -134,9 +172,15 @@ export function Dashboard() {
                 loadDashboardSummary()
               }}
               healthByServiceId={healthByServiceId}
+              riskByServiceId={riskByServiceId}
             />
 
-            <ServiceDetail service={selectedService} />
+            <ServiceDetail
+              service={selectedService}
+              risk={selectedService ? riskByServiceId[selectedService.id] : null}
+              riskLoading={riskLoading}
+              riskError={riskError}
+            />
 
             <SecurityEventsPanel events={securityEvents} error={securityEventsError} />
           </main>
@@ -144,6 +188,8 @@ export function Dashboard() {
       )}
 
       {activeTab === 'logs' && <LogsPage services={services} />}
+
+      {activeTab === 'anomalies' && <AnomaliesPage services={services} />}
     </div>
   )
 }

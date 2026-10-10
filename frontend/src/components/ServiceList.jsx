@@ -13,6 +13,7 @@ export function ServiceList({
   onSelect,
   onServiceCreated,
   healthByServiceId = {},
+  riskByServiceId = {},
 }) {
   const { auth, handleAuthError } = useAuth()
   const canWrite = auth.role === 'USER' || auth.role === 'ADMIN'
@@ -90,6 +91,7 @@ export function ServiceList({
               <th>Type</th>
               <th>Criticality</th>
               <th>Status</th>
+              <th>Risk</th>
             </tr>
           </thead>
           <tbody>
@@ -120,6 +122,9 @@ export function ServiceList({
                       <span className="muted">—</span>
                     )}
                   </td>
+                  <td>
+                    <RiskBadge risk={riskByServiceId[s.id]} />
+                  </td>
                 </tr>
               )
             })}
@@ -127,5 +132,18 @@ export function ServiceList({
         </table>
       )}
     </section>
+  )
+}
+
+// Phase 4 risk level + score, coloured like the criticality badges (badge-low ... badge-critical).
+// Shown next to the Phase 3 threshold Status so both are visible side by side.
+function RiskBadge({ risk }) {
+  if (!risk || risk.score == null || !risk.level) {
+    return <span className="muted" title={risk?.reason ?? 'Not scored yet'}>—</span>
+  }
+  return (
+    <span className={`badge badge-${risk.level.toLowerCase()} risk-badge`}>
+      {risk.level} {Math.round(risk.score)}
+    </span>
   )
 }
