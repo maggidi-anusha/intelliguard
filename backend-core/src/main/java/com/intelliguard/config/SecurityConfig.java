@@ -93,6 +93,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/logs")
                         .hasAnyRole("VIEWER", "USER", "ADMIN")
 
+                        // DETECTED ANOMALIES + RISK - READ: VIEWER, USER, ADMIN. Written only by the
+                        // scoring job; no write endpoints exist.
+                        .requestMatchers(HttpMethod.GET, "/api/anomalies", "/api/risk/**")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+
                         // SERVICES - WRITE: USER, ADMIN only
                         .requestMatchers(HttpMethod.POST, "/api/services/**")
                         .hasAnyRole("USER", "ADMIN")

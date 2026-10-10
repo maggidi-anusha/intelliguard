@@ -29,11 +29,12 @@ public class DashboardService {
 
     private static final int WINDOW_MINUTES = 60;
 
-    private static final double CPU_DEGRADED_THRESHOLD = 90.0;
-    private static final double MEMORY_DEGRADED_THRESHOLD = 90.0;
-    private static final double DISK_DEGRADED_THRESHOLD = 90.0;
-    private static final double ERROR_RATE_DEGRADED_THRESHOLD = 5.0;
-    private static final double LATENCY_DEGRADED_THRESHOLD_MS = 500.0;
+    // Shared with the risk engine (L0Thresholds) so dashboard badges and risk can't disagree.
+    private static final double CPU_DEGRADED_THRESHOLD = L0Thresholds.LIMITS.get(MetricType.CPU);
+    private static final double MEMORY_DEGRADED_THRESHOLD = L0Thresholds.LIMITS.get(MetricType.MEMORY);
+    private static final double DISK_DEGRADED_THRESHOLD = L0Thresholds.LIMITS.get(MetricType.DISK);
+    private static final double ERROR_RATE_DEGRADED_THRESHOLD = L0Thresholds.LIMITS.get(MetricType.ERROR_RATE);
+    private static final double LATENCY_DEGRADED_THRESHOLD_MS = L0Thresholds.LIMITS.get(MetricType.LATENCY);
 
     private final ServiceRepository serviceRepository;
     private final MetricRecordRepository metricRecordRepository;

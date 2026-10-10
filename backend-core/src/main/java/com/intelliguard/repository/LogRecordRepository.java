@@ -15,6 +15,9 @@ public interface LogRecordRepository extends JpaRepository<LogRecord, Long> {
 
     long countByTimestampAfter(Instant timestamp);
 
+    // Risk engine input: recent ERROR logs for one service.
+    long countByServiceIdAndLevelAndTimestampAfter(Long serviceId, LogLevel level, Instant timestamp);
+
     // Backs the global /api/logs endpoint - serviceId and level are both optional filters,
     // so one flexible query is used instead of four derived-method combinations. Bounded by
     // the caller-supplied Pageable rather than returning the whole table.

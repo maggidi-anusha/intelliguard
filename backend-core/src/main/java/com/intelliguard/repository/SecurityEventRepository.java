@@ -10,4 +10,7 @@ public interface SecurityEventRepository extends JpaRepository<SecurityEvent, Lo
     List<SecurityEvent> findTop50ByOrderByTimestampDesc();
 
     long countByTimestampAfter(Instant timestamp);
+
+    // Risk engine input: recent security events attributed to one service.
+    long countByServiceIdAndTimestampAfter(Long serviceId, Instant timestamp);
 }
