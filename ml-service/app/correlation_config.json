@@ -1,0 +1,29 @@
+{
+  "default_profile": "backend_4_edges",
+  "profiles": {
+    "full_call_graph": {
+      "gap_seconds": 240,
+      "max_hops": 1,
+      "weights": {
+        "onset": 0.35,
+        "dependents": 0.3,
+        "peak": 0.15,
+        "security": 0.1,
+        "criticality": 0.1
+      }
+    },
+    "backend_4_edges": {
+      "gap_seconds": 240,
+      "max_hops": 1,
+      "weights": {
+        "onset": 0.2,
+        "dependents": 0.5,
+        "peak": 0.1,
+        "security": 0.1,
+        "criticality": 0.1
+      }
+    }
+  },
+  "selected_by": "VALIDATION seeds [501, 502]: gap/max_hops by pairwise F1, then weights by top-1 over all cascades, per graph",
+  "evaluation": "docs/evaluation/phase5-correlation.md"
+}
