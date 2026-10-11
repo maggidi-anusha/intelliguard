@@ -46,7 +46,7 @@ docker compose up --build
 - [x] **Phase 2** — Telemetry pipeline (simulator + ingestion + tracing)
 - [x] **Phase 3** — Dashboard v1
 - [x] **Phase 4** — Anomaly detection + risk engine
-- [ ] **Phase 5** — Correlation + root cause
+- [x] **Phase 5** — Correlation + root cause
 - [ ] **Phase 6** — Incident workspace + lite RAG copilot
 - [ ] **Phase 7** — Testing, CI/CD, deployment, evaluation, report
 
@@ -109,3 +109,46 @@ results below were measured on **synthetic anomalies injected by the project's o
   risk weights and cut-offs are hand-chosen, not learned or validated; L1 adapts to slow
   drifts and also flags benign baseline shifts (e.g. a simulator restart with a new seed);
   the 5-minute look-back keeps risk raised for a few minutes after an incident ends.
+
+### Phase 5 details
+
+Phase 5 groups detected anomaly episodes into incidents and ranks the likely root-cause service.
+The grouping and the ranking are a **heuristic, graph-based method, not a learned model**. All
+results below come from **synthetic cascades injected by the project's own simulator**. The
+live integration has also been checked on synthetic cascades only.
+
+- **Cascade scenario:** `SCENARIO_MODE=cascade` injects a ROOT anomaly on one service and SYMPTOM
+  anomalies on its callers (10–60 s later, along the call graph), plus DISTRACTOR anomalies on
+  unrelated services at overlapping times. EASY cascades have a strong root; HARD ones have a
+  subtle, drifting root with visible symptoms. Labels (`groupId`, `role`, `rootServiceId`) are in
+  the ground-truth params. The demo, continuous and normal output is unchanged.
+- **Dependency graph:** the new `service_dependencies` table holds every edge of the 7-edge call
+  graph. The legacy single `dependsOnServiceId` could hold only 4 of them; it still works, and is
+  copied in at startup. Unknown id → 404, self-loop → 400, duplicate → 409, cycle → 400. The
+  simulator registers all 7 edges on start (`GET/POST/DELETE /api/service-dependencies`).
+- **Correlation and root cause:** ml-service `POST /correlate` (stateless). Two episodes are linked
+  when they are at most 240 s apart and at most 1 hop apart in the graph, and incidents are the
+  connected components. Each service in an incident is scored as
+  `0.35·earliest onset + 0.30·dependents + 0.15·peak + 0.10·security events + 0.10·criticality`
+  (each normalized within the incident). Every candidate carries evidence strings, and the
+  incident gets a confidence = (score #1 − score #2) / score #1.
+- **Incidents:** backend-core correlates OPEN and recently closed episodes every 15 s and stores
+  incidents with a stable identity (matched by anomaly ids; merges keep the older incident, and
+  a split keeps it on the larger part). An incident is OPEN while any anomaly is open, and
+  RESOLVED after a 5-minute quiet period; a new anomaly reopens it. Severity is the highest current
+  risk level of its services. If ml-service is down the cycle is skipped and nothing changes.
+  Read-only `GET /api/incidents` and `GET /api/incidents/{id}` (services with current risk,
+  anomalies, ranked candidates with evidence, timeline) are open to any authenticated role. See
+  [`docs/incidents.md`](docs/incidents.md).
+- **Evaluation (synthetic, TEST seeds only):** with the full 7-edge graph the rank-1 service was
+  the true root in 81.4% of the 183 test cascades whose root was detected; the earliest-onset-only
+  baseline got 76.8% and random choice 37.3%. Over all 258 cascades the rate was 57.8% vs 54.5%, since
+  an undetected root can't be ranked. The grouping's pairwise F1 was 75.5% vs 69.8% for a
+  time-window-only baseline. With only the 4 legacy edges the ranking merely tied the earliest-onset
+  baseline (49.6% vs 49.2%) and the grouping F1 fell to 57.4%. Full tables, seeds and parameters:
+  [`docs/evaluation/phase5-correlation.md`](docs/evaluation/phase5-correlation.md).
+- **Known limitations:** synthetic cascades authored by the same project as the method; a tiny
+  topology (8 services) and few cascades; metric anomalies only. Distractors on a neighbouring
+  service merge into the incident (98 of 233 test cascades). HARD roots were detected in only 8
+  of 83 cases, so the rank-1 service is then a symptom. The weights and gap were tuned on
+  validation seeds, and the 240 s gap is the largest value tried.
