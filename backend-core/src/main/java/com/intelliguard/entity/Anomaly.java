@@ -13,7 +13,7 @@ import java.time.Instant;
 // first flags, extended while it keeps flagging, closed after N unflagged scoring cycles.
 // Never written from ground truth - injected-anomaly labels live in ground_truth_events.
 @Entity
-@Table(name = "anomalies")
+@Table(name = "anomalies", indexes = @Index(name = "idx_anomalies_incident_id", columnList = "incident_id"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -64,4 +64,10 @@ public class Anomaly {
 
     // Consecutive scoring cycles without a flag while OPEN; the episode closes at N.
     private Integer unflaggedCycles;
+
+    // Phase 5.3: the incident this episode belongs to (at most one), set by IncidentCorrelationJob
+    // through AnomalyRepository.linkToIncident. Read-only for JPA so the scoring job's saves of
+    // the same row can never overwrite it with a stale value.
+    @Column(name = "incident_id", insertable = false, updatable = false)
+    private Long incidentId;
 }

@@ -5,11 +5,13 @@ import com.intelliguard.entity.enums.AnomalyStatus;
 import com.intelliguard.entity.enums.DetectorType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 public interface AnomalyRepository extends JpaRepository<Anomaly, Long> {
@@ -26,4 +28,29 @@ public interface AnomalyRepository extends JpaRepository<Anomaly, Long> {
 
     @Transactional
     long deleteByStatusAndEndedAtBefore(AnomalyStatus status, Instant cutoff);
+
+    // --- Phase 5.3 incident correlation ---
+
+    // Correlation input: OPEN episodes, unlinked CLOSED ones that ended at or after the cutoff
+    // (look-back), and EVERY episode of an incident that is OPEN or was resolved at or after the
+    // cutoff. An incident's members enter and leave the input together: if they aged out one by
+    // one, the remaining ones could fall apart into groups and look like a split.
+    @Query("SELECT a FROM Anomaly a WHERE a.status = com.intelliguard.entity.enums.AnomalyStatus.OPEN " +
+            "OR (a.incidentId IS NULL AND a.status = com.intelliguard.entity.enums.AnomalyStatus.CLOSED AND a.endedAt >= :cutoff) " +
+            "OR a.incidentId IN (SELECT i.id FROM Incident i WHERE i.status = com.intelliguard.entity.enums.IncidentStatus.OPEN " +
+            "OR (i.status = com.intelliguard.entity.enums.IncidentStatus.RESOLVED AND i.resolvedAt >= :cutoff))")
+    List<Anomaly> findCorrelationCandidates(@Param("cutoff") Instant cutoff);
+
+    List<Anomaly> findByIncidentIdOrderByDetectedAtAscIdAsc(Long incidentId);
+
+    // incident_id is read-only for JPA (see Anomaly.incidentId); it is only ever written here.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Transactional
+    @Query(value = "UPDATE anomalies SET incident_id = :incidentId WHERE id IN (:ids)", nativeQuery = true)
+    int linkToIncident(@Param("incidentId") Long incidentId, @Param("ids") Collection<Long> ids);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Transactional
+    @Query(value = "UPDATE anomalies SET incident_id = NULL WHERE incident_id IN (:incidentIds)", nativeQuery = true)
+    int unlinkIncidents(@Param("incidentIds") Collection<Long> incidentIds);
 }

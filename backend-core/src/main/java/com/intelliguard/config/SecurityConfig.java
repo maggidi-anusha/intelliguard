@@ -98,6 +98,20 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/anomalies", "/api/risk/**")
                         .hasAnyRole("VIEWER", "USER", "ADMIN")
 
+                        // INCIDENTS - READ: VIEWER, USER, ADMIN. Written only by the incident
+                        // correlation job; no write endpoints exist.
+                        .requestMatchers(HttpMethod.GET, "/api/incidents", "/api/incidents/**")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+
+                        // SERVICE DEPENDENCY GRAPH - READ: VIEWER, USER, ADMIN; WRITE: USER, ADMIN
+                        // (the same rule as service writes below)
+                        .requestMatchers(HttpMethod.GET, "/api/service-dependencies", "/api/service-dependencies/**")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/service-dependencies", "/api/service-dependencies/**")
+                        .hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/service-dependencies/**")
+                        .hasAnyRole("USER", "ADMIN")
+
                         // SERVICES - WRITE: USER, ADMIN only
                         .requestMatchers(HttpMethod.POST, "/api/services/**")
                         .hasAnyRole("USER", "ADMIN")

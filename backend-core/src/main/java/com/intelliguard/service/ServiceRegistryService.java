@@ -14,6 +14,7 @@ import java.util.List;
 public class ServiceRegistryService {
 
     private final ServiceRepository serviceRepository;
+    private final ServiceDependencyService dependencyService;
 
     public Service create(ServiceRequest request) {
         if (serviceRepository.existsByName(request.getName())) {
@@ -29,7 +30,10 @@ public class ServiceRegistryService {
                 .dependsOnServiceId(request.getDependsOnServiceId())
                 .build();
 
-        return serviceRepository.save(service);
+        Service saved = serviceRepository.save(service);
+        // The legacy single dependency is also kept in the dependency graph (add only).
+        dependencyService.mirrorLegacyDependency(saved);
+        return saved;
     }
 
     public List<Service> getAll() {
@@ -58,6 +62,8 @@ public class ServiceRegistryService {
         service.setHostname(request.getHostname());
         service.setDependsOnServiceId(request.getDependsOnServiceId());
 
-        return serviceRepository.save(service);
+        Service saved = serviceRepository.save(service);
+        dependencyService.mirrorLegacyDependency(saved);
+        return saved;
     }
 }
