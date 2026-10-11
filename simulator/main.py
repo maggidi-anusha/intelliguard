@@ -8,7 +8,7 @@ import requests
 import config
 from client import BackendClient
 from engine import SCENARIO_MODES, SimulationEngine, format_ts, make_run_id, resolve_seed
-from topology import register_services
+from topology import register_dependencies, register_services
 from tracing import build_tracers, simulate_call_chain
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -113,7 +113,8 @@ def main():
     wait_for_backend(client)
 
     services = register_services(client)
-    log.info("Topology ready: %s", services)
+    edges = register_dependencies(client, services)
+    log.info("Topology ready: %s (%d dependency edges)", services, edges)
 
     run_start = datetime.now(timezone.utc)
     run_id = make_run_id("live", mode, run_start, seed)

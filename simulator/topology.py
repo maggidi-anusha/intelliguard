@@ -10,8 +10,9 @@ log = logging.getLogger("simulator.topology")
 # by Phase 5). order-service and api-gateway genuinely have more than one downstream
 # dependency (order-service also calls inventory-service; api-gateway fans out to both
 # auth-service and order-service) - that can't be expressed as one FK. Only the
-# unambiguous 1:1 edges are captured here; the full call graph, including the ones this
-# field can't hold, is what Jaeger's service map shows from the trace spans instead.
+# unambiguous 1:1 edges are captured here; the full call graph (CALL_GRAPH below) is
+# registered separately in backend-core's service_dependencies (Phase 5.3) by
+# register_dependencies, and is also what Jaeger's service map shows from the trace spans.
 SEED_SERVICES = [
     {"name": "user-db", "type": "DATABASE", "criticality": "CRITICAL", "depends_on": None},
     {"name": "order-db", "type": "DATABASE", "criticality": "CRITICAL", "depends_on": None},
@@ -80,3 +81,30 @@ def register_services(client):
             resp.raise_for_status()
 
     return existing
+
+
+def register_dependencies(client, services):
+    """Idempotently registers every CALL_GRAPH edge in backend-core's service_dependencies.
+
+    Runs after register_services on every start; 409 (edge already exists) counts as success. A
+    failed edge is logged and skipped - telemetry generation must not stop over it.
+    Returns the number of edges that are registered (new or already present)."""
+    ok = 0
+    for caller, callees in sorted(CALL_GRAPH.items()):
+        for callee in callees:
+            if caller not in services or callee not in services:
+                log.warning("Dependency %s -> %s skipped: service not registered", caller, callee)
+                continue
+            body = {"serviceId": services[caller], "dependsOnServiceId": services[callee]}
+            try:
+                resp = client.post("/api/service-dependencies", body)
+            except Exception as exc:  # network errors: log and continue
+                log.warning("Dependency %s -> %s failed: %s", caller, callee, exc)
+                continue
+            if resp.status_code in (201, 409):
+                ok += 1
+                log.info("Dependency %s -> %s %s", caller, callee,
+                         "registered" if resp.status_code == 201 else "already registered")
+            else:
+                log.warning("Dependency %s -> %s failed: %s %s", caller, callee, resp.status_code, resp.text)
+    return ok
