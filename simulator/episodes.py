@@ -247,6 +247,106 @@ def demo_plan(schedule_path):
     return sorted(episodes, key=lambda e: (e.start_s, e.episode_id))
 
 
+# --- cascade mode: a root anomaly that propagates to its callers, plus unrelated distractors ---
+
+CASCADE_GAP_MINUTES = (6, 15)          # quiet time between cascades
+CASCADE_DURATION_MINUTES = (3, 8)      # how long the root anomaly lasts
+SYMPTOM_DELAY_SECONDS = (10, 60)       # each hop starts this much after the service it calls
+SYMPTOM_END_LAG_SECONDS = (0, 30)      # symptoms outlast the root slightly
+SYMPTOM_PROPAGATION_PROBABILITY = 0.85  # chance each caller shows a symptom
+HARD_CASCADE_PROBABILITY = 0.3         # root subtle (slow drift), symptoms clearly visible
+ROOT_SECURITY_PROBABILITY = 0.3
+DISTRACTOR_COUNTS = [0, 1, 1, 2]       # drawn uniformly: 0, 1 or 2 distractors per cascade
+DISTRACTOR_OFFSET_SECONDS = (-60, 180)  # distractor start relative to the root start
+DISTRACTOR_DURATION_MINUTES = (1.5, 5)
+ROOT_METRICS = {"DATABASE": ["LATENCY", "ERROR_RATE", "CPU", "DISK"],
+                "MICROSERVICE": ["ERROR_RATE", "LATENCY", "CPU", "MEMORY"]}
+SYMPTOM_METRICS = ["LATENCY", "ERROR_RATE"]  # how a failing dependency shows up in its callers
+
+
+def _easy_level(rng, metric_type, low_frac, high_frac):
+    band_lo, band_hi = EASY_BANDS[metric_type]
+    return {"kind": "easy_level_shift", "level": round(band_lo + rng.uniform(low_frac, high_frac) * (band_hi - band_lo), 3)}
+
+
+def cascade_plan(seed, services):
+    """Endless cascades. Each one: a ROOT anomaly on a service that has callers, SYMPTOM anomalies
+    on its callers (transitively, along CALL_GRAPH) starting 10-60 s after the service they call,
+    and 0-2 independent DISTRACTOR anomalies on services outside the cascade at overlapping times.
+
+    EASY cascades: strong root (upper EASY band), weaker symptoms (lower EASY band).
+    HARD cascades: subtle, slowly drifting root (1.5-3 sigma by the end) with clearly visible
+    symptoms, so a detector often sees a symptom before (or instead of) the root.
+    Labels carry groupId, role (ROOT/SYMPTOM/DISTRACTOR), rootService and cascadeType in params;
+    each distractor is its own single-member group and never shares a cascade's groupId."""
+    from topology import SEED_SERVICES, callers_of
+
+    rng = rng_stream(seed, "cascade-plan")
+    types = {s["name"]: s["type"] for s in SEED_SERVICES}
+    callers = callers_of()
+    roots = [s for s in services if any(c in services for c in callers.get(s, []))]
+    t = 0.0
+    n = 0
+    while True:
+        n += 1
+        group = f"cascade-{n:04d}"
+        hard = rng.random() < HARD_CASCADE_PROBABILITY
+        cascade_type = "HARD" if hard else "EASY"
+        root = rng.choice(roots)
+        start = t + round(rng.uniform(*CASCADE_GAP_MINUTES) * 60)
+        end = start + round(rng.uniform(*CASCADE_DURATION_MINUTES) * 60)
+        metric = rng.choice(ROOT_METRICS[types.get(root, "MICROSERVICE")])
+        if hard:
+            root_ep = Episode(f"{group}-root", root, "DRIFT", "SUBTLE", start, end,
+                              {metric: {"kind": "subtle_drift", "k_sigma": round(rng.uniform(*SUBTLE_SIGMA_RANGE), 3)}})
+        else:
+            root_ep = Episode(f"{group}-root", root, "LEVEL_SHIFT", "EASY", start, end, {metric: _easy_level(rng, metric, 0.5, 0.9)})
+        root_ep.label_params = {"groupId": group, "role": "ROOT", "rootService": root, "cascadeType": cascade_type}
+        if root in SECURITY_BY_SERVICE and rng.random() < ROOT_SECURITY_PROBABILITY:
+            event_type, severity = SECURITY_BY_SERVICE[root]
+            root_ep.security = SecurityComponent(event_type, severity, start, start + min(end - start, SECURITY_MAX_WINDOW_SECONDS),
+                                                 SECURITY_EMIT_PROBABILITY["EASY"])
+        members = [root_ep]
+
+        # Symptoms: breadth-first towards callers, each hop delayed from the service it calls.
+        frontier, seen = [(root, start)], {root}
+        while frontier:
+            callee, onset = frontier.pop(0)
+            for caller in callers.get(callee, []):
+                if caller in seen or caller not in services:
+                    continue
+                if rng.random() >= SYMPTOM_PROPAGATION_PROBABILITY:
+                    continue
+                seen.add(caller)
+                s_start = onset + round(rng.uniform(*SYMPTOM_DELAY_SECONDS))
+                s_end = max(end, s_start + 60) + round(rng.uniform(*SYMPTOM_END_LAG_SECONDS))
+                s_metric = rng.choice(SYMPTOM_METRICS)
+                params = _easy_level(rng, s_metric, 0.5, 0.9) if hard else _easy_level(rng, s_metric, 0.05, 0.25)
+                ep = Episode(f"{group}-sym-{caller}", caller, "LEVEL_SHIFT", "EASY", s_start, s_end, {s_metric: params},
+                             label_params={"groupId": group, "role": "SYMPTOM", "rootService": root, "cascadeType": cascade_type})
+                members.append(ep)
+                frontier.append((caller, s_start))
+
+        # Distractors: unrelated services, overlapping in time, each its own group.
+        unrelated = [s for s in services if s not in seen]
+        distractors = []
+        for i in range(min(rng.choice(DISTRACTOR_COUNTS), len(unrelated))):
+            svc = rng.choice(unrelated)
+            unrelated.remove(svc)
+            d_start = max(t, start + round(rng.uniform(*DISTRACTOR_OFFSET_SECONDS)))
+            d_metric = rng.choice(METRIC_TYPES)
+            scenario = rng.choice(["SPIKE", "LEVEL_SHIFT"])
+            ep = build_episode(rng, f"{group}-dis-{i + 1}", svc, scenario, "EASY", d_start,
+                               round(rng.uniform(*DISTRACTOR_DURATION_MINUTES) * 60), [d_metric])
+            ep.label_params = {"groupId": f"{group}-dis-{i + 1}", "role": "DISTRACTOR", "rootService": svc}
+            distractors.append(ep)
+
+        episodes = sorted(members + distractors, key=lambda e: (e.start_s, e.episode_id))
+        for ep in episodes:
+            yield ep
+        t = max(e.end_s for e in episodes)
+
+
 def make_plan(mode, seed, services, schedule_path=None) -> Iterator[Episode]:
     if mode == "demo":
         return iter(demo_plan(schedule_path))
@@ -254,4 +354,6 @@ def make_plan(mode, seed, services, schedule_path=None) -> Iterator[Episode]:
         return continuous_plan(seed, services)
     if mode == "normal":
         return iter(())
-    raise ValueError(f"unknown SCENARIO_MODE {mode!r} (expected demo, continuous or normal)")
+    if mode == "cascade":
+        return cascade_plan(seed, services)
+    raise ValueError(f"unknown SCENARIO_MODE {mode!r} (expected demo, continuous, normal or cascade)")

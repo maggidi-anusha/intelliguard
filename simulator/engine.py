@@ -17,7 +17,7 @@ from security_events import build_event_details
 from telemetry_generator import METRIC_TYPES, baseline_stats, generate_logs, normal_value, rng_stream, service_jitter
 from topology import SEED_SERVICES
 
-SCENARIO_MODES = ("demo", "continuous", "normal")
+SCENARIO_MODES = ("demo", "continuous", "normal", "cascade")
 
 
 def format_ts(ts: datetime) -> str:
@@ -216,12 +216,16 @@ class SimulationEngine:
 
     def _labels_for(self, state: _EpisodeState, created_at: datetime, partial: bool) -> List[dict]:
         episode = state.episode
+        label_params = dict(episode.label_params)
+        root_service = label_params.pop("rootService", None)  # cascade mode: name -> service id
+        if root_service is not None:
+            label_params["rootServiceId"] = self.services.get(root_service)
         common = {
             "episode_id": episode.episode_id,
             "planned_start": format_ts(self._at(episode.start_s)),
             "planned_end": format_ts(self._at(episode.end_s)),
             "partial": partial,
-            **episode.label_params,
+            **label_params,
         }
         rows = []
         jitter = self.jitter(episode.service)

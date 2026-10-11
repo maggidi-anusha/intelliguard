@@ -23,6 +23,27 @@ SEED_SERVICES = [
     {"name": "frontend-web", "type": "MICROSERVICE", "criticality": "MEDIUM", "depends_on": "api-gateway"},
 ]
 
+# The full call graph (service -> services it calls/depends on), as exercised by the trace call
+# chain in tracing.py. It has 7 edges; the backend's single dependsOnServiceId can only hold the 4
+# unambiguous ones above (api-gateway -> auth-service/order-service and order-service ->
+# inventory-service are lost). Cascade scenarios propagate along this graph, towards callers.
+CALL_GRAPH = {
+    "frontend-web": ["api-gateway"],
+    "api-gateway": ["auth-service", "order-service"],
+    "auth-service": ["user-db"],
+    "order-service": ["order-db", "inventory-service"],
+    "inventory-service": ["inventory-db"],
+}
+
+
+def callers_of(graph=None):
+    """Inverse of the call graph: service -> services that call (depend on) it."""
+    callers = {}
+    for caller, callees in (graph or CALL_GRAPH).items():
+        for callee in callees:
+            callers.setdefault(callee, []).append(caller)
+    return {k: sorted(v) for k, v in callers.items()}
+
 
 def _fetch_existing(client):
     resp = client.get("/api/services")

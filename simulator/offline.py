@@ -47,8 +47,8 @@ def _json(obj):
 
 def generate(out_dir, seed, mode, duration_minutes, start=None, tick_seconds=TICK_SECONDS):
     """Write the four CSVs to out_dir and return a summary dict."""
-    if mode not in ("continuous", "normal"):
-        raise ValueError("offline mode must be 'continuous' or 'normal'")
+    if mode not in ("continuous", "normal", "cascade"):
+        raise ValueError("offline mode must be 'continuous', 'normal' or 'cascade'")
     start = start or parse_ts(DEFAULT_START)
     services = {s["name"]: i for i, s in enumerate(SEED_SERVICES, 1)}
     run_id = make_run_id("offline", mode, start, seed)
@@ -123,7 +123,7 @@ def main(argv=None):
     parser.add_argument("--days", type=int, default=0, help="simulated days (combined with --minutes)")
     parser.add_argument("--minutes", type=int, default=0, help="simulated minutes (combined with --days)")
     parser.add_argument("--seed", type=int, default=None, help="SIMULATOR_SEED; generated and printed if omitted")
-    parser.add_argument("--mode", choices=["continuous", "normal"], default="continuous")
+    parser.add_argument("--mode", choices=["continuous", "normal", "cascade"], default="continuous")
     parser.add_argument("--start", default=DEFAULT_START, help=f"simulated start time, ISO-8601 (default {DEFAULT_START})")
     parser.add_argument("--out", default=None, help="output directory (default datasets/<run_id>)")
     args = parser.parse_args(argv)

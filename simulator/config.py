@@ -18,4 +18,5 @@ SEED = os.environ.get("SIMULATOR_SEED", "")
 
 # demo (default): the fixed anomaly_schedule.json, as in Phase 2/3.
 # continuous: randomized episodes repeating for the whole run. normal: no anomalies at all.
+# cascade: root anomalies propagating to their callers, plus unrelated distractor anomalies.
 SCENARIO_MODE = os.environ.get("SCENARIO_MODE", "").strip().lower() or "demo"
