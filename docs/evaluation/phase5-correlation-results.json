@@ -1,0 +1,919 @@
+{
+  "sets": [
+    {
+      "set": "TRAIN (normal mode; L1 floors only)",
+      "seeds": [
+        101,
+        102,
+        103
+      ],
+      "cascades": 0,
+      "easy": 0,
+      "hard": 0,
+      "distractors": 0,
+      "episodes": 0,
+      "noise": 0,
+      "cascades_detected": 0,
+      "roots_detected": 0
+    },
+    {
+      "set": "VALIDATION",
+      "seeds": [
+        501,
+        502
+      ],
+      "cascades": 168,
+      "easy": 113,
+      "hard": 55,
+      "distractors": 213,
+      "episodes": 1081,
+      "noise": 61,
+      "cascades_detected": 161,
+      "roots_detected": 119
+    },
+    {
+      "set": "TEST",
+      "seeds": [
+        601,
+        602,
+        603
+      ],
+      "cascades": 258,
+      "easy": 175,
+      "hard": 83,
+      "distractors": 348,
+      "episodes": 1529,
+      "noise": 78,
+      "cascades_detected": 244,
+      "roots_detected": 183
+    }
+  ],
+  "chosen": {
+    "full_call_graph": {
+      "gap_seconds": 240,
+      "max_hops": 1,
+      "weights": {
+        "onset": 0.35,
+        "dependents": 0.3,
+        "peak": 0.15,
+        "security": 0.1,
+        "criticality": 0.1
+      },
+      "val_f1": 0.7631677250653716,
+      "val_top1": 0.6011904761904762,
+      "val_top3": 0.6964285714285714
+    },
+    "backend_4_edges": {
+      "gap_seconds": 240,
+      "max_hops": 1,
+      "weights": {
+        "onset": 0.2,
+        "dependents": 0.5,
+        "peak": 0.1,
+        "security": 0.1,
+        "criticality": 0.1
+      },
+      "val_f1": 0.5489443378119001,
+      "val_top1": 0.48214285714285715,
+      "val_top3": 0.4880952380952381
+    },
+    "time_only": {
+      "gap_seconds": 120,
+      "max_hops": 1,
+      "weights": {
+        "onset": 0.25,
+        "dependents": 0.25,
+        "peak": 0.3,
+        "security": 0.1,
+        "criticality": 0.1
+      },
+      "val_f1": 0.68715953307393,
+      "val_top1": 0.5357142857142857,
+      "val_top3": 0.6785714285714286
+    }
+  },
+  "test": {
+    "full_call_graph": {
+      "pairwise": {
+        "precision": 0.6108618654073199,
+        "recall": 0.9877815960290187,
+        "f1": 0.7548876568427195
+      },
+      "outcomes": {
+        "fully merged (clean)": 103,
+        "merged + other": 23,
+        "merged + distractor": 98,
+        "not detected": 14,
+        "split": 9,
+        "only 1 episode detected": 11
+      },
+      "root_cause": {
+        "ranking": {
+          "root detected top1": [
+            0.8142076502732241,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.84,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.25,
+            8
+          ],
+          "root detected top3": [
+            0.9617486338797814,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.9714285714285714,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.75,
+            8
+          ],
+          "all top1": [
+            0.5775193798449613,
+            258
+          ],
+          "all top1 EASY": [
+            0.84,
+            175
+          ],
+          "all top1 HARD": [
+            0.024096385542168676,
+            83
+          ],
+          "all top3": [
+            0.686046511627907,
+            258
+          ],
+          "all top3 EASY": [
+            0.9714285714285714,
+            175
+          ],
+          "all top3 HARD": [
+            0.08433734939759036,
+            83
+          ]
+        },
+        "earliest_onset": {
+          "root detected top1": [
+            0.76775956284153,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.7971428571428572,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.125,
+            8
+          ],
+          "root detected top3": [
+            0.9371584699453552,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.9571428571428572,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.5,
+            8
+          ],
+          "all top1": [
+            0.5445736434108527,
+            258
+          ],
+          "all top1 EASY": [
+            0.7971428571428572,
+            175
+          ],
+          "all top1 HARD": [
+            0.012048192771084338,
+            83
+          ],
+          "all top3": [
+            0.6686046511627907,
+            258
+          ],
+          "all top3 EASY": [
+            0.9571428571428572,
+            175
+          ],
+          "all top3 HARD": [
+            0.060240963855421686,
+            83
+          ]
+        },
+        "highest_peak": {
+          "root detected top1": [
+            0.5027322404371585,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.5142857142857142,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.25,
+            8
+          ],
+          "root detected top3": [
+            0.7595628415300546,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7657142857142857,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.625,
+            8
+          ],
+          "all top1": [
+            0.35658914728682173,
+            258
+          ],
+          "all top1 EASY": [
+            0.5142857142857142,
+            175
+          ],
+          "all top1 HARD": [
+            0.024096385542168676,
+            83
+          ],
+          "all top3": [
+            0.5426356589147286,
+            258
+          ],
+          "all top3 EASY": [
+            0.7657142857142857,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "most_dependents": {
+          "root detected top1": [
+            0.6994535519125683,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.6942857142857143,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.8125,
+            8
+          ],
+          "root detected top3": [
+            0.9699453551912568,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.9685714285714285,
+            175
+          ],
+          "root detected top3 HARD": [
+            1.0,
+            8
+          ],
+          "all top1": [
+            0.5,
+            258
+          ],
+          "all top1 EASY": [
+            0.6942857142857143,
+            175
+          ],
+          "all top1 HARD": [
+            0.09036144578313253,
+            83
+          ],
+          "all top3": [
+            0.7034883720930233,
+            258
+          ],
+          "all top3 EASY": [
+            0.9685714285714285,
+            175
+          ],
+          "all top3 HARD": [
+            0.14457831325301204,
+            83
+          ]
+        },
+        "random": {
+          "root detected top1": [
+            0.3734452250845694,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.37270748299319734,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.3895833333333333,
+            8
+          ],
+          "root detected top3": [
+            0.8061280249804839,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.8066938775510204,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.79375,
+            8
+          ],
+          "all top1": [
+            0.26824473975636765,
+            258
+          ],
+          "all top1 EASY": [
+            0.37270748299319734,
+            175
+          ],
+          "all top1 HARD": [
+            0.04799196787148594,
+            83
+          ],
+          "all top3": [
+            0.5818660022148394,
+            258
+          ],
+          "all top3 EASY": [
+            0.8066938775510204,
+            175
+          ],
+          "all top3 HARD": [
+            0.10783132530120482,
+            83
+          ]
+        }
+      }
+    },
+    "backend_4_edges": {
+      "pairwise": {
+        "precision": 0.8031550068587106,
+        "recall": 0.4471172203130966,
+        "f1": 0.5744419916605347
+      },
+      "outcomes": {
+        "fully merged (clean)": 73,
+        "split": 149,
+        "not detected": 14,
+        "only 1 episode detected": 11,
+        "merged + other": 6,
+        "merged + distractor": 5
+      },
+      "root_cause": {
+        "ranking": {
+          "root detected top1": [
+            0.6994535519125683,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.6971428571428572,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.75,
+            8
+          ],
+          "root detected top3": [
+            0.726775956284153,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.75,
+            8
+          ],
+          "all top1": [
+            0.49612403100775193,
+            258
+          ],
+          "all top1 EASY": [
+            0.6971428571428572,
+            175
+          ],
+          "all top1 HARD": [
+            0.07228915662650602,
+            83
+          ],
+          "all top3": [
+            0.5155038759689923,
+            258
+          ],
+          "all top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "earliest_onset": {
+          "root detected top1": [
+            0.6939890710382514,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.72,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.125,
+            8
+          ],
+          "root detected top3": [
+            0.726775956284153,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.75,
+            8
+          ],
+          "all top1": [
+            0.49224806201550386,
+            258
+          ],
+          "all top1 EASY": [
+            0.72,
+            175
+          ],
+          "all top1 HARD": [
+            0.012048192771084338,
+            83
+          ],
+          "all top3": [
+            0.5155038759689923,
+            258
+          ],
+          "all top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "highest_peak": {
+          "root detected top1": [
+            0.46994535519125685,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.48,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.25,
+            8
+          ],
+          "root detected top3": [
+            0.726775956284153,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.75,
+            8
+          ],
+          "all top1": [
+            0.3333333333333333,
+            258
+          ],
+          "all top1 EASY": [
+            0.48,
+            175
+          ],
+          "all top1 HARD": [
+            0.024096385542168676,
+            83
+          ],
+          "all top3": [
+            0.5155038759689923,
+            258
+          ],
+          "all top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "most_dependents": {
+          "root detected top1": [
+            0.6994535519125683,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.6971428571428572,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.75,
+            8
+          ],
+          "root detected top3": [
+            0.726775956284153,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.75,
+            8
+          ],
+          "all top1": [
+            0.49612403100775193,
+            258
+          ],
+          "all top1 EASY": [
+            0.6971428571428572,
+            175
+          ],
+          "all top1 HARD": [
+            0.07228915662650602,
+            83
+          ],
+          "all top3": [
+            0.5155038759689923,
+            258
+          ],
+          "all top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "random": {
+          "root detected top1": [
+            0.46994535519125685,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.4714285714285714,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.4375,
+            8
+          ],
+          "root detected top3": [
+            0.726775956284153,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.75,
+            8
+          ],
+          "all top1": [
+            0.3333333333333333,
+            258
+          ],
+          "all top1 EASY": [
+            0.4714285714285714,
+            175
+          ],
+          "all top1 HARD": [
+            0.04216867469879518,
+            83
+          ],
+          "all top3": [
+            0.5155038759689923,
+            258
+          ],
+          "all top3 EASY": [
+            0.7257142857142858,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        }
+      }
+    },
+    "time_only": {
+      "pairwise": {
+        "precision": 0.5720555961960497,
+        "recall": 0.8957617411225659,
+        "f1": 0.6982142857142857
+      },
+      "outcomes": {
+        "fully merged (clean)": 30,
+        "merged + distractor": 149,
+        "split": 48,
+        "not detected": 14,
+        "merged + other": 6,
+        "only 1 episode detected": 11
+      },
+      "root_cause": {
+        "ranking": {
+          "root detected top1": [
+            0.7650273224043715,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.7885714285714286,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.25,
+            8
+          ],
+          "root detected top3": [
+            0.9781420765027322,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.9942857142857143,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.625,
+            8
+          ],
+          "all top1": [
+            0.5426356589147286,
+            258
+          ],
+          "all top1 EASY": [
+            0.7885714285714286,
+            175
+          ],
+          "all top1 HARD": [
+            0.024096385542168676,
+            83
+          ],
+          "all top3": [
+            0.6976744186046512,
+            258
+          ],
+          "all top3 EASY": [
+            0.9942857142857143,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "earliest_onset": {
+          "root detected top1": [
+            0.7513661202185792,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.7742857142857142,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.25,
+            8
+          ],
+          "root detected top3": [
+            0.9836065573770492,
+            183
+          ],
+          "root detected top3 EASY": [
+            1.0,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.625,
+            8
+          ],
+          "all top1": [
+            0.5329457364341085,
+            258
+          ],
+          "all top1 EASY": [
+            0.7742857142857142,
+            175
+          ],
+          "all top1 HARD": [
+            0.024096385542168676,
+            83
+          ],
+          "all top3": [
+            0.7015503875968992,
+            258
+          ],
+          "all top3 EASY": [
+            1.0,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "highest_peak": {
+          "root detected top1": [
+            0.47540983606557374,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.49142857142857144,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.125,
+            8
+          ],
+          "root detected top3": [
+            0.7103825136612022,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7142857142857143,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.625,
+            8
+          ],
+          "all top1": [
+            0.3372093023255814,
+            258
+          ],
+          "all top1 EASY": [
+            0.49142857142857144,
+            175
+          ],
+          "all top1 HARD": [
+            0.012048192771084338,
+            83
+          ],
+          "all top3": [
+            0.5077519379844961,
+            258
+          ],
+          "all top3 EASY": [
+            0.7142857142857143,
+            175
+          ],
+          "all top3 HARD": [
+            0.07228915662650602,
+            83
+          ]
+        },
+        "most_dependents": {
+          "root detected top1": [
+            0.317863648191517,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.31525170068027214,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.375,
+            8
+          ],
+          "root detected top3": [
+            0.7869242779078843,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7857551020408163,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.8125,
+            8
+          ],
+          "all top1": [
+            0.22675341454411224,
+            258
+          ],
+          "all top1 EASY": [
+            0.31525170068027214,
+            175
+          ],
+          "all top1 HARD": [
+            0.040160642570281124,
+            83
+          ],
+          "all top3": [
+            0.5620431893687708,
+            258
+          ],
+          "all top3 EASY": [
+            0.7857551020408163,
+            175
+          ],
+          "all top3 HARD": [
+            0.09036144578313253,
+            83
+          ]
+        },
+        "random": {
+          "root detected top1": [
+            0.317863648191517,
+            183
+          ],
+          "root detected top1 EASY": [
+            0.31525170068027214,
+            175
+          ],
+          "root detected top1 HARD": [
+            0.375,
+            8
+          ],
+          "root detected top3": [
+            0.7869242779078843,
+            183
+          ],
+          "root detected top3 EASY": [
+            0.7857551020408163,
+            175
+          ],
+          "root detected top3 HARD": [
+            0.8125,
+            8
+          ],
+          "all top1": [
+            0.22675341454411224,
+            258
+          ],
+          "all top1 EASY": [
+            0.31525170068027214,
+            175
+          ],
+          "all top1 HARD": [
+            0.040160642570281124,
+            83
+          ],
+          "all top3": [
+            0.5620431893687708,
+            258
+          ],
+          "all top3 EASY": [
+            0.7857551020408163,
+            175
+          ],
+          "all top3 HARD": [
+            0.09036144578313253,
+            83
+          ]
+        }
+      }
+    }
+  },
+  "args": {
+    "train_seeds": [
+      101,
+      102,
+      103
+    ],
+    "val_seeds": [
+      501,
+      502
+    ],
+    "test_seeds": [
+      601,
+      602,
+      603
+    ],
+    "days": 1,
+    "data_dir": "/work/datasets/phase5",
+    "doc_out": "/work/docs/evaluation/phase5-correlation.md",
+    "json_out": "/work/docs/evaluation/phase5-correlation-results.json",
+    "config_out": "/work/ml-service/app/correlation_config.json"
+  }
+}
