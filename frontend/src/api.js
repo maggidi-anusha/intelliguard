@@ -86,4 +86,16 @@ export const api = {
     const query = params.toString()
     return request(`/api/anomalies${query ? `?${query}` : ''}`, { token })
   },
+
+  // Incidents (Phase 5 correlation) and the Phase 6 workspace writes (USER/ADMIN only).
+  getIncidents: (token, { status } = {}) =>
+    request(`/api/incidents${status ? `?status=${status}` : ''}`, { token }),
+
+  getIncident: (token, id) => request(`/api/incidents/${id}`, { token }),
+
+  addIncidentNote: (token, id, text) =>
+    request(`/api/incidents/${id}/notes`, { method: 'POST', body: { text }, token }),
+
+  acknowledgeIncident: (token, id) =>
+    request(`/api/incidents/${id}/acknowledge`, { method: 'POST', token }),
 }

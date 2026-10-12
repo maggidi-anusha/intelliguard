@@ -7,6 +7,7 @@ import { SecurityEventsPanel } from './SecurityEventsPanel'
 import { SummaryCards } from './SummaryCards'
 import { LogsPage } from './LogsPage'
 import { AnomaliesPage } from './AnomaliesPage'
+import { IncidentsPage } from './IncidentsPage'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -31,6 +32,11 @@ export function Dashboard() {
   const [risk, setRisk] = useState(null)
   const [riskLoading, setRiskLoading] = useState(true)
   const [riskError, setRiskError] = useState(null)
+
+  // "Open incidents" card (OPEN + INVESTIGATING): polled on its own so a failing incidents
+  // endpoint only affects that card.
+  const [openIncidents, setOpenIncidents] = useState(null)
+  const [openIncidentsError, setOpenIncidentsError] = useState(null)
 
   const loadServices = useCallback(async () => {
     try {
@@ -78,19 +84,34 @@ export function Dashboard() {
     }
   }, [auth.token, handleAuthError])
 
+  const loadOpenIncidents = useCallback(async () => {
+    try {
+      const [open, investigating] = await Promise.all([
+        api.getIncidents(auth.token, { status: 'OPEN' }),
+        api.getIncidents(auth.token, { status: 'INVESTIGATING' }),
+      ])
+      setOpenIncidents({ open: open.length, investigating: investigating.length })
+      setOpenIncidentsError(null)
+    } catch (err) {
+      if (!handleAuthError(err)) setOpenIncidentsError(err.message)
+    }
+  }, [auth.token, handleAuthError])
+
   useEffect(() => {
     loadServices()
     loadSecurityEvents()
     loadDashboardSummary()
     loadRisk()
+    loadOpenIncidents()
     const interval = setInterval(() => {
       loadServices()
       loadSecurityEvents()
       loadDashboardSummary()
       loadRisk()
+      loadOpenIncidents()
     }, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [loadServices, loadSecurityEvents, loadDashboardSummary, loadRisk])
+  }, [loadServices, loadSecurityEvents, loadDashboardSummary, loadRisk, loadOpenIncidents])
 
   const selectedService = services.find((s) => s.id === selectedServiceId) ?? null
 
@@ -145,6 +166,13 @@ export function Dashboard() {
         >
           Anomalies
         </button>
+        <button
+          type="button"
+          className={activeTab === 'incidents' ? 'active' : ''}
+          onClick={() => setActiveTab('incidents')}
+        >
+          Incidents
+        </button>
       </nav>
 
       {activeTab === 'overview' && (
@@ -157,6 +185,8 @@ export function Dashboard() {
               risk={risk}
               riskLoading={riskLoading}
               riskError={riskError}
+              openIncidents={openIncidents}
+              openIncidentsError={openIncidentsError}
             />
           </div>
 
@@ -190,6 +220,8 @@ export function Dashboard() {
       {activeTab === 'logs' && <LogsPage services={services} />}
 
       {activeTab === 'anomalies' && <AnomaliesPage services={services} />}
+
+      {activeTab === 'incidents' && <IncidentsPage services={services} />}
     </div>
   )
 }

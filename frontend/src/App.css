@@ -549,3 +549,193 @@ tbody tr.selected {
   font-size: 12px;
   color: var(--text);
 }
+
+/* ---- Incidents (Phase 6 workspace) ---- */
+
+.incidents-page,
+.incident-detail {
+  margin: 20px 24px;
+}
+
+.incidents-table tbody tr.incident-active {
+  background: rgba(181, 71, 8, 0.08);
+  font-weight: 500;
+}
+
+.incident-peak {
+  font-size: 12px;
+}
+
+.badge-incident-open { color: #b42318; border-color: #b42318; }
+.badge-incident-investigating { color: #b54708; border-color: #b54708; }
+.badge-incident-resolved { color: #067647; border-color: #067647; }
+.badge-incident-merged,
+.badge-incident-unknown { color: var(--text); opacity: 0.8; }
+
+.incident-header h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.incident-header-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.incident-times {
+  font-size: 13px;
+  margin: 8px 0 4px;
+  color: var(--text-h);
+}
+
+.incident-actions {
+  margin: 8px 0 4px;
+}
+
+.incident-readonly {
+  font-size: 13px;
+  margin: 8px 0 4px;
+}
+
+.incident-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+  align-items: start;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.incident-section {
+  margin-top: 16px;
+}
+
+.incident-subcaption {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.candidate-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.candidate-list > li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.candidate-list > li.candidate-top {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.candidate-row {
+  display: grid;
+  grid-template-columns: 2.5em 1.4fr 2fr 3em;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.candidate-rank,
+.candidate-name,
+.candidate-score {
+  color: var(--text-h);
+}
+
+.candidate-score {
+  text-align: right;
+}
+
+.candidate-evidence {
+  margin: 6px 0 0 2.5em;
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.incident-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.incident-timeline li {
+  display: grid;
+  grid-template-columns: 7em 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-incident-event .timeline-detail {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.timeline-note_added .timeline-detail,
+.timeline-acknowledged .timeline-detail {
+  color: var(--accent);
+}
+
+.incident-ack-note {
+  font-size: 13px;
+}
+
+.note-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.note-list li {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.note-meta {
+  font-size: 13px;
+}
+
+.note-text {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.note-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 14px;
+}
+
+.note-form-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+tbody tr.static-row {
+  cursor: default;
+}

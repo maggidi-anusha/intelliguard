@@ -3,7 +3,10 @@
 // the per-service health badges in ServiceList can never disagree with each other.
 // The "At risk" card comes from GET /api/risk/current instead (Phase 4); its own loading/error
 // state is shown inside that card, so a failing risk endpoint doesn't hide the other cards.
-export function SummaryCards({ summary, loading, error, risk, riskLoading, riskError }) {
+// "Open incidents" (Phase 6) works the same way, from GET /api/incidents.
+export function SummaryCards({
+  summary, loading, error, risk, riskLoading, riskError, openIncidents, openIncidentsError,
+}) {
   if (loading && !summary) {
     return (
       <section className="panel summary-panel">
@@ -36,6 +39,7 @@ export function SummaryCards({ summary, loading, error, risk, riskLoading, riskE
     { label: `Logs (last ${summary.windowMinutes}m)`, value: summary.recentLogCount },
     { label: `Security events (last ${summary.windowMinutes}m)`, value: summary.recentSecurityEventCount },
     atRiskCard(risk, riskLoading, riskError),
+    openIncidentsCard(openIncidents, openIncidentsError),
   ]
 
   return (
@@ -57,6 +61,22 @@ export function SummaryCards({ summary, loading, error, risk, riskLoading, riskE
       </div>
     </section>
   )
+}
+
+function openIncidentsCard(counts, error) {
+  const label = 'Open incidents'
+  if (!counts) {
+    return error
+      ? { label, value: '—', note: 'Incidents unavailable', tone: 'unknown' }
+      : { label, value: '…', tone: 'unknown' }
+  }
+  const total = counts.open + counts.investigating
+  return {
+    label,
+    value: total,
+    tone: total > 0 ? 'at-risk' : 'healthy',
+    note: error ? 'Refresh failed - last known value' : `${counts.open} open · ${counts.investigating} investigating`,
+  }
 }
 
 function atRiskCard(risk, riskLoading, riskError) {
