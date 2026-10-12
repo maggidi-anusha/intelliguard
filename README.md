@@ -152,3 +152,30 @@ live integration has also been checked on synthetic cascades only.
   service merge into the incident (98 of 233 test cascades). HARD roots were detected in only 8
   of 83 cases, so the rank-1 service is then a symptom. The weights and gap were tuned on
   validation seeds, and the 240 s gap is the largest value tried.
+
+### Phase 6 details (in progress)
+
+Phase 6A adds the incident workspace. The copilot (Phase 6B) is still to come, so Phase 6 is not
+ticked yet.
+
+- **What it shows:** an **Incidents** tab lists incidents newest first (status, severity and
+  peak severity, title, number of services, likely root cause with its confidence, start and
+  last activity; filter by status). Clicking one opens the workspace: the ranked root-cause
+  candidates with score bars and their evidence written out, the affected services with their
+  current risk, a timeline (anomaly start/end, lifecycle, notes, acknowledgement), the anomaly
+  episodes and the notes. The Overview has an "Open incidents" card (OPEN + INVESTIGATING).
+- **Who can write:** USER and ADMIN can add notes (1–2000 characters, author taken from the login)
+  and acknowledge an OPEN incident, which sets it to INVESTIGATING and records who and when.
+  Acknowledging is idempotent. Both actions appear in the timeline. VIEWER is read-only: the API
+  answers 403 and the controls are hidden. A MERGED incident rejects both (409). A RESOLVED
+  incident still takes notes but can't be acknowledged.
+- **Lifecycle:** INVESTIGATING behaves like OPEN. It still auto-resolves 5 minutes after the last
+  anomaly activity, and a new anomaly joining a resolved incident reopens it as OPEN. The
+  correlation job never writes notes or acknowledgement data. Optimistic locking makes a
+  concurrent job update and user action retry instead of overwriting each other.
+- **Root-cause evidence:** security events now count only inside each incident's own window, so
+  two consecutive incidents on the same service no longer share them.
+- **Known limits:** there is no un-acknowledge, assignment, or editing/deleting of notes. Notes
+  and acknowledgement stay on an incident that gets merged into an older one. The list shows the
+  newest 100 incidents and the workspace the newest 200 notes. The root cause is still a
+  heuristic ranking, checked on synthetic cascades only.
