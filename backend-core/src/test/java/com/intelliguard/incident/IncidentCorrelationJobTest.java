@@ -18,6 +18,7 @@ import com.intelliguard.ml.MlCorrelateRequest;
 import com.intelliguard.ml.MlCorrelateResponse;
 import com.intelliguard.ml.MlCorrelationClient;
 import com.intelliguard.repository.AnomalyRepository;
+import com.intelliguard.repository.IncidentNoteRepository;
 import com.intelliguard.repository.IncidentRepository;
 import com.intelliguard.repository.SecurityEventRepository;
 import com.intelliguard.repository.ServiceDependencyRepository;
@@ -43,10 +44,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +65,7 @@ class IncidentCorrelationJobTest {
 
     private final AnomalyRepository anomalies = mock(AnomalyRepository.class);
     private final IncidentRepository incidents = mock(IncidentRepository.class);
+    private final IncidentNoteRepository notes = mock(IncidentNoteRepository.class);
     private final ServiceRepository services = mock(ServiceRepository.class);
     private final ServiceDependencyRepository dependencies = mock(ServiceDependencyRepository.class);
     private final SecurityEventRepository security = mock(SecurityEventRepository.class);
@@ -70,7 +74,11 @@ class IncidentCorrelationJobTest {
     private IncidentCorrelationJob job;
 
     // What the mocked ml-service returns next: groups of anomaly ids (first id = rank-1 service).
+    // Each call answers with the scripted groups restricted to the episodes it was sent, so the
+    // per-incident ranking calls get back exactly their own group.
     private List<List<Long>> nextGroups = List.of();
+    // Security events per service (timestamps), counted by the fake repository per window.
+    private final Map<Long, List<Instant>> securityEvents = new LinkedHashMap<>();
 
     @BeforeEach
     void setUp() {
@@ -89,7 +97,7 @@ class IncidentCorrelationJobTest {
                     return a.getEndedAt() != null && !a.getEndedAt().isBefore(cutoff);
                 }
                 Incident i = incidentRows.get(a.getIncidentId());
-                return i.getStatus() == IncidentStatus.OPEN
+                return i.getStatus() == IncidentStatus.OPEN || i.getStatus() == IncidentStatus.INVESTIGATING
                         || (i.getStatus() == IncidentStatus.RESOLVED && !i.getResolvedAt().isBefore(cutoff));
             }).toList();
         });
@@ -118,14 +126,20 @@ class IncidentCorrelationJobTest {
             });
             return found;
         });
-        when(incidents.findByStatus(any())).thenAnswer(inv -> incidentRows.values().stream()
-                .filter(i -> i.getStatus() == inv.getArgument(0)).toList());
+        when(incidents.findByStatusIn(any())).thenAnswer(inv -> incidentRows.values().stream()
+                .filter(i -> ((Collection<?>) inv.getArgument(0)).contains(i.getStatus())).toList());
         when(incidents.findExpiredIds(any())).thenReturn(List.of());
-        when(ml.correlate(any())).thenAnswer(inv -> Optional.of(response(nextGroups)));
+        when(security.countByServiceIdAndTimestampBetween(anyLong(), any(), any())).thenAnswer(inv -> {
+            Instant from = inv.getArgument(1);
+            Instant to = inv.getArgument(2);
+            return securityEvents.getOrDefault((Long) inv.getArgument(0), List.of()).stream()
+                    .filter(t -> !t.isBefore(from) && !t.isAfter(to)).count();
+        });
+        when(ml.correlate(any())).thenAnswer(inv -> Optional.of(response(inv.getArgument(0))));
 
         IncidentProperties props = new IncidentProperties(true, 15_000, Duration.ofMinutes(10), Duration.ofMinutes(5),
                 Duration.ofDays(7), "full_call_graph", 2000);
-        job = new IncidentCorrelationJob(anomalies, incidents, services, dependencies, security, ml, risk, props,
+        job = new IncidentCorrelationJob(anomalies, incidents, notes, services, dependencies, security, ml, risk, props,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)));
     }
 
@@ -309,6 +323,58 @@ class IncidentCorrelationJobTest {
     }
 
     @Test
+    void consecutiveIncidentsOnTheSameRootDoNotShareSecurityEvents() {
+        // Live case (cascade-0002 / cascade-0003): an incident on order-db is still in its quiet
+        // period when the next incident on order-db starts; only the second one had security events.
+        closed(1, 2, 0, 500);
+        closed(2, 6, 30, 500);
+        nextGroups = List.of(List.of(1L, 2L));
+        job.runCycle(T0.plusSeconds(520));
+        Incident first = incidentRows.values().iterator().next();
+
+        open(3, 2, 760);
+        open(4, 6, 775);
+        securityEvents.put(2L, List.of(T0.plusSeconds(755), T0.plusSeconds(765), T0.plusSeconds(770)));
+        nextGroups = List.of(List.of(1L, 2L), List.of(3L, 4L));
+        job.runCycle(T0.plusSeconds(790)); // first is still OPEN (quiet period until 800)
+
+        Incident second = incidentRows.get(anomalyRows.get(3L).getIncidentId());
+        assertThat(second).isNotSameAs(first);
+        assertThat(first.getStatus()).isEqualTo(IncidentStatus.OPEN);
+        assertThat(securityOf(first, 2L)).isZero();   // was 3 when counted per service
+        assertThat(securityOf(second, 2L)).isEqualTo(3L);
+    }
+
+    @Test
+    void investigatingFollowsTheOpenLifecycle_andTheJobNeverTouchesAcknowledgementOrNotes() {
+        closed(1, 2, 0, 120);
+        open(2, 6, 30);
+        nextGroups = List.of(List.of(1L, 2L));
+        job.runCycle(T0.plusSeconds(150));
+        Incident i = incidentRows.values().iterator().next();
+        i.setStatus(IncidentStatus.INVESTIGATING); // acknowledged through the API
+        i.setAcknowledgedBy("alice");
+        i.setAcknowledgedAt(T0.plusSeconds(160));
+
+        job.runCycle(T0.plusSeconds(165));
+        assertThat(i.getStatus()).isEqualTo(IncidentStatus.INVESTIGATING); // anomaly still open
+        close(2, 180);
+        job.runCycle(T0.plusSeconds(200));
+        assertThat(i.getStatus()).isEqualTo(IncidentStatus.INVESTIGATING); // quiet period running
+        job.runCycle(T0.plusSeconds(480));
+        assertThat(i.getStatus()).isEqualTo(IncidentStatus.RESOLVED);       // still auto-resolves
+
+        open(3, 7, 470);
+        nextGroups = List.of(List.of(1L, 2L, 3L));
+        job.runCycle(T0.plusSeconds(490));
+        assertThat(i.getStatus()).isEqualTo(IncidentStatus.OPEN);           // reopened as OPEN
+        assertThat(i.getEvents()).extracting(e -> e.get("type")).containsExactly("CREATED", "RESOLVED", "REOPENED");
+        assertThat(i.getAcknowledgedBy()).isEqualTo("alice");
+        assertThat(i.getAcknowledgedAt()).isEqualTo(T0.plusSeconds(160));
+        verify(notes, never()).save(any());
+    }
+
+    @Test
     void mlServiceDown_skipsTheCycleWithoutTouchingIncidents() {
         open(1, 2, 0);
         nextGroups = List.of(List.of(1L));
@@ -316,7 +382,7 @@ class IncidentCorrelationJobTest {
         Incident i = incidentRows.values().iterator().next();
         List<Long> servicesBefore = List.copyOf(i.getServiceIds());
 
-        when(ml.correlate(any())).thenReturn(Optional.empty());
+        doReturn(Optional.empty()).when(ml).correlate(any());
         open(2, 6, 70);
         clearInvocations(incidents, anomalies);
 
@@ -328,7 +394,7 @@ class IncidentCorrelationJobTest {
         assertThat(i.getServiceIds()).isEqualTo(servicesBefore);
         assertThat(anomalyRows.get(2L).getIncidentId()).isNull();
 
-        when(ml.correlate(any())).thenAnswer(inv -> Optional.of(response(nextGroups)));
+        doAnswer(inv -> Optional.of(response(inv.getArgument(0)))).when(ml).correlate(any());
         nextGroups = List.of(List.of(1L, 2L));
         assertThat(job.runCycle(T0.plusSeconds(90))).isTrue(); // resumes
         assertThat(anomalyRows.get(2L).getIncidentId()).isEqualTo(i.getId());
@@ -340,19 +406,21 @@ class IncidentCorrelationJobTest {
         l0.setDetector(DetectorType.L0);
         l0.setAnomalyScore(1.2); // value / limit -> 0.6 on the L1 scale
         closed(2, 2, 10, 100).setAnomalyScore(0.93);
-        when(security.countByServiceIdAndTimestampAfter(eq(2L), eq(T0.plusSeconds(10).minusSeconds(60)))).thenReturn(3L);
+        securityEvents.put(2L, List.of(T0.plusSeconds(20), T0.plusSeconds(30), T0.plusSeconds(40),
+                T0.plusSeconds(500))); // the last one is outside the incident's window
         nextGroups = List.of(List.of(2L, 1L));
 
         job.runCycle(T0.plusSeconds(120));
 
         ArgumentCaptor<MlCorrelateRequest> sent = ArgumentCaptor.forClass(MlCorrelateRequest.class);
-        verify(ml).correlate(sent.capture());
-        MlCorrelateRequest r = sent.getValue();
+        verify(ml, times(2)).correlate(sent.capture()); // grouping, then this incident's ranking
+        assertThat(sent.getAllValues().get(0).securityEvents()).isEmpty();
+        assertThat(sent.getAllValues().get(1).securityEvents()).containsExactly(Map.entry(2L, 3L));
+        MlCorrelateRequest r = sent.getAllValues().get(0);
         assertThat(r.profile()).isEqualTo("full_call_graph");
         assertThat(r.dependencies()).containsExactly(new MlCorrelateRequest.Edge(6L, 2L),
                 new MlCorrelateRequest.Edge(7L, 6L), new MlCorrelateRequest.Edge(8L, 7L));
         assertThat(r.criticality()).containsEntry(2L, "CRITICAL").containsEntry(6L, "HIGH").hasSize(5);
-        assertThat(r.securityEvents()).containsExactly(Map.entry(2L, 3L));
         assertThat(r.episodes()).satisfiesExactly(
                 e -> {
                     assertThat(e.id()).isEqualTo(1L);
@@ -391,21 +459,31 @@ class IncidentCorrelationJobTest {
         a.setEndedAt(T0.plusSeconds(endSeconds));
     }
 
-    private MlCorrelateResponse response(List<List<Long>> groups) {
+    private MlCorrelateResponse response(MlCorrelateRequest request) {
+        List<Long> sent = request.episodes().stream().map(MlCorrelateRequest.Episode::id).toList();
+        List<List<Long>> groups = nextGroups.stream().map(g -> g.stream().filter(sent::contains).toList())
+                .filter(g -> !g.isEmpty()).toList();
         List<MlCorrelateResponse.Group> out = new ArrayList<>();
         for (int n = 0; n < groups.size(); n++) {
             List<Long> ids = groups.get(n);
             List<Long> svc = ids.stream().map(id -> anomalyRows.get(id).getServiceId()).distinct().toList();
             List<Map<String, Object>> candidates = new ArrayList<>();
             for (int r = 0; r < svc.size(); r++) {
+                long sec = request.securityEvents().getOrDefault(svc.get(r), 0L);
                 candidates.add(Map.of("serviceId", svc.get(r), "rank", r + 1, "score", 1.0 - 0.2 * r,
-                        "evidence", List.of("test evidence")));
+                        "securityEvents", sec, "evidence", List.of(sec + " security event(s) in the window")));
             }
             out.add(new MlCorrelateResponse.Group("incident-" + (n + 1), ids, svc.stream().sorted().toList(),
                     Map.of("confidence", svc.size() == 1 ? 1.0 : 0.2, "candidates", candidates)));
         }
         return new MlCorrelateResponse("heuristic graph-based correlation and root-cause ranking (not a learned model)",
                 "full_call_graph", Map.of("gap_seconds", 240.0, "max_hops", 1), "(s1 - s2) / s1", T0.toString(), out);
+    }
+
+    private static long securityOf(Incident incident, long serviceId) {
+        return ((List<?>) incident.getRootCause().get("candidates")).stream().map(c -> (Map<?, ?>) c)
+                .filter(c -> ((Number) c.get("serviceId")).longValue() == serviceId)
+                .mapToLong(c -> ((Number) c.get("securityEvents")).longValue()).findFirst().orElseThrow();
     }
 
     private static Service service(long id, String name, Criticality criticality) {

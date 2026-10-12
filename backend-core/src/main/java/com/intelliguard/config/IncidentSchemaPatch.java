@@ -31,6 +31,9 @@ public class IncidentSchemaPatch {
             if (Boolean.TRUE.equals(exists)) {
                 jdbcTemplate.execute("ALTER TABLE incidents DROP CONSTRAINT IF EXISTS incidents_status_check");
                 jdbcTemplate.execute("ALTER TABLE incidents ADD CONSTRAINT incidents_status_check CHECK (status IN (" + values + "))");
+                // Phase 6A optimistic locking: rows created before the version column need a value.
+                jdbcTemplate.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS version bigint DEFAULT 0");
+                jdbcTemplate.execute("UPDATE incidents SET version = 0 WHERE version IS NULL");
             }
         } catch (Exception e) {
             log.warn("Could not update incidents.status CHECK constraint: {}", e.getMessage());

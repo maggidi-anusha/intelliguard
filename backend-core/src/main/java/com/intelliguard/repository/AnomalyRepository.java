@@ -32,12 +32,13 @@ public interface AnomalyRepository extends JpaRepository<Anomaly, Long> {
     // --- Phase 5.3 incident correlation ---
 
     // Correlation input: OPEN episodes, unlinked CLOSED ones that ended at or after the cutoff
-    // (look-back), and EVERY episode of an incident that is OPEN or was resolved at or after the
+    // (look-back), and EVERY episode of an incident that is OPEN/INVESTIGATING or was resolved at or after the
     // cutoff. An incident's members enter and leave the input together: if they aged out one by
     // one, the remaining ones could fall apart into groups and look like a split.
     @Query("SELECT a FROM Anomaly a WHERE a.status = com.intelliguard.entity.enums.AnomalyStatus.OPEN " +
             "OR (a.incidentId IS NULL AND a.status = com.intelliguard.entity.enums.AnomalyStatus.CLOSED AND a.endedAt >= :cutoff) " +
             "OR a.incidentId IN (SELECT i.id FROM Incident i WHERE i.status = com.intelliguard.entity.enums.IncidentStatus.OPEN " +
+            "OR i.status = com.intelliguard.entity.enums.IncidentStatus.INVESTIGATING " +
             "OR (i.status = com.intelliguard.entity.enums.IncidentStatus.RESOLVED AND i.resolvedAt >= :cutoff))")
     List<Anomaly> findCorrelationCandidates(@Param("cutoff") Instant cutoff);
 

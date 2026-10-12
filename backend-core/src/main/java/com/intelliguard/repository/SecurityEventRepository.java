@@ -13,4 +13,7 @@ public interface SecurityEventRepository extends JpaRepository<SecurityEvent, Lo
 
     // Risk engine input: recent security events attributed to one service.
     long countByServiceIdAndTimestampAfter(Long serviceId, Instant timestamp);
+
+    // Root-cause evidence: one service's security events inside one incident's window.
+    long countByServiceIdAndTimestampBetween(Long serviceId, Instant from, Instant to);
 }

@@ -12,6 +12,7 @@ import com.intelliguard.ml.MlCorrelateRequest;
 import com.intelliguard.ml.MlCorrelateResponse;
 import com.intelliguard.ml.MlCorrelationClient;
 import com.intelliguard.repository.AnomalyRepository;
+import com.intelliguard.repository.IncidentNoteRepository;
 import com.intelliguard.repository.IncidentRepository;
 import com.intelliguard.repository.SecurityEventRepository;
 import com.intelliguard.repository.ServiceDependencyRepository;
@@ -43,9 +44,12 @@ import java.util.stream.Collectors;
 // Every cycle (15 s by default, fixed delay):
 //   1. collect anomaly episodes that are OPEN, not yet linked and ended within the look-back
 //      (10 min), or belong to an incident that is OPEN or was resolved within the look-back
-//   2. send them to ml-service POST /correlate with the dependency graph (service_dependencies),
-//      service criticality and per-service security-event counts; if ml-service doesn't answer
-//      (down, slow, error) the cycle is skipped and nothing is written
+//   2. send them to ml-service POST /correlate with the dependency graph (service_dependencies)
+//      and service criticality to group them; then re-rank each changed group in its own call
+//      with the security events inside THAT group's window (start - 60 s .. last activity), so
+//      one incident's security events never count in another incident on the same service.
+//      If ml-service doesn't answer any call (down, slow, error) the cycle is skipped and
+//      nothing is written
 //   3. map each returned group onto a persistent Incident with a stable identity:
 //        - a group whose anomalies belong to no incident yet -> a new incident
 //        - incidents are matched by overlapping anomaly ids, oldest incident first; each claims
@@ -53,9 +57,11 @@ import java.util.stream.Collectors;
 //          the other part becomes a new incident, recorded as SPLIT_TO / SPLIT_FROM)
 //        - an incident whose groups were all claimed by older incidents is MERGED into the one
 //          holding most of its anomalies (recorded as MERGED_INTO / MERGED_FROM)
-//   4. lifecycle: OPEN while any linked anomaly is OPEN or its quiet period (5 min after the
-//      last flagged sample) is running; RESOLVED after that; a RESOLVED incident is frozen until
-//      a new anomaly joins it, which reopens it (REOPENED)
+//   4. lifecycle: OPEN (or INVESTIGATING, once acknowledged - treated the same) while any linked
+//      anomaly is OPEN or its quiet period (5 min after the last flagged sample) is running;
+//      RESOLVED after that; a RESOLVED incident is frozen until a new anomaly joins it, which
+//      reopens it as OPEN (REOPENED). Notes and acknowledgement data are never written here, and
+//      Incident.version makes a concurrent API write fail this cycle instead of being overwritten.
 // The grouping and root-cause ranking are ml-service's heuristic (not a learned model); this job
 // only persists them. Ground truth is never read here.
 @Slf4j
@@ -66,9 +72,12 @@ public class IncidentCorrelationJob {
     private static final int RETENTION_EVERY_N_CYCLES = 40;
     // Security events this long before a service's first anomaly in the window still count for it.
     private static final Duration SECURITY_LEAD = Duration.ofSeconds(60);
+    // INVESTIGATING (acknowledged) follows the same lifecycle as OPEN.
+    private static final List<IncidentStatus> ACTIVE = List.of(IncidentStatus.OPEN, IncidentStatus.INVESTIGATING);
 
     private final AnomalyRepository anomalyRepository;
     private final IncidentRepository incidentRepository;
+    private final IncidentNoteRepository noteRepository;
     private final ServiceRepository serviceRepository;
     private final ServiceDependencyRepository dependencyRepository;
     private final SecurityEventRepository securityEventRepository;
@@ -103,14 +112,60 @@ public class IncidentCorrelationJob {
         }
         Map<Long, Service> services = serviceRepository.findAll().stream()
                 .collect(Collectors.toMap(Service::getId, Function.identity()));
-        Optional<MlCorrelateResponse> response = mlClient.correlate(buildRequest(candidates, services));
-        if (response.isEmpty() || response.get().incidents() == null) {
+        List<MlCorrelateRequest.Edge> edges = dependencyRepository.findAll().stream()
+                .map(d -> new MlCorrelateRequest.Edge(d.getServiceId(), d.getDependsOnServiceId())).toList();
+        Optional<MlCorrelateResponse> grouped = mlClient.correlate(buildRequest(candidates, services, edges, Map.of()));
+        Optional<MlCorrelateResponse> ranked = grouped.isEmpty() || grouped.get().incidents() == null
+                ? Optional.empty() : rankPerIncident(grouped.get(), candidates, services, edges);
+        if (ranked.isEmpty()) {
             log.warn("Incident correlation skipped this cycle: no answer from ml-service ({} episodes pending)",
                     candidates.size());
             return false;
         }
-        transactionTemplate.executeWithoutResult(status -> apply(response.get(), candidates, services, now));
+        transactionTemplate.executeWithoutResult(status -> apply(ranked.get(), candidates, services, now));
         return true;
+    }
+
+    // Re-ranks every group that may change an incident with only its own episodes and the security
+    // events inside its own window. A group made only of one RESOLVED incident's episodes is frozen
+    // (not re-ranked). Empty when any call fails.
+    private Optional<MlCorrelateResponse> rankPerIncident(MlCorrelateResponse grouped, List<Anomaly> candidates,
+                                                          Map<Long, Service> services, List<MlCorrelateRequest.Edge> edges) {
+        Map<Long, Anomaly> byId = candidates.stream().collect(Collectors.toMap(Anomaly::getId, Function.identity()));
+        Set<Long> resolved = incidentRepository.findAllById(candidates.stream().map(Anomaly::getIncidentId)
+                        .filter(Objects::nonNull).collect(Collectors.toSet())).stream()
+                .filter(i -> i.getStatus() == IncidentStatus.RESOLVED).map(Incident::getId).collect(Collectors.toSet());
+        List<MlCorrelateResponse.Group> out = new ArrayList<>();
+        for (MlCorrelateResponse.Group g : grouped.incidents()) {
+            List<Anomaly> members = g.episodeIds() == null ? List.of()
+                    : g.episodeIds().stream().map(byId::get).filter(Objects::nonNull).toList();
+            Set<Long> owners = members.stream().map(a -> a.getIncidentId() == null ? -1L : a.getIncidentId())
+                    .collect(Collectors.toSet());
+            if (members.isEmpty() || (owners.size() == 1 && resolved.containsAll(owners))) {
+                out.add(g);
+                continue;
+            }
+            Instant from = members.stream().map(Anomaly::getDetectedAt).min(Comparator.naturalOrder()).orElseThrow()
+                    .minus(SECURITY_LEAD);
+            Instant to = members.stream().map(IncidentCorrelationJob::lastSeen).max(Comparator.naturalOrder()).orElseThrow();
+            Map<Long, Long> security = new TreeMap<>();
+            members.stream().map(Anomaly::getServiceId).distinct().forEach(serviceId -> {
+                long count = securityEventRepository.countByServiceIdAndTimestampBetween(serviceId, from, to);
+                if (count > 0) {
+                    security.put(serviceId, count);
+                }
+            });
+            Optional<MlCorrelateResponse> r = mlClient.correlate(buildRequest(members, services, edges, security));
+            if (r.isEmpty() || r.get().incidents() == null) {
+                return Optional.empty();
+            }
+            // The group's members alone always form one component; fall back to the grouping call's
+            // ranking (without security counts) if ml-service ever answers otherwise.
+            Map<String, Object> rootCause = r.get().incidents().size() == 1 ? r.get().incidents().get(0).rootCause() : g.rootCause();
+            out.add(new MlCorrelateResponse.Group(g.incidentId(), g.episodeIds(), g.services(), rootCause));
+        }
+        return Optional.of(new MlCorrelateResponse(grouped.method(), grouped.profile(), grouped.params(),
+                grouped.confidenceMethod(), grouped.asOf(), out));
     }
 
     // -- input ---------------------------------------------------------------------------------
@@ -131,26 +186,14 @@ public class IncidentCorrelationJob {
         return sorted;
     }
 
-    MlCorrelateRequest buildRequest(List<Anomaly> candidates, Map<Long, Service> services) {
-        List<MlCorrelateRequest.Episode> episodes = candidates.stream().map(a -> new MlCorrelateRequest.Episode(
+    private MlCorrelateRequest buildRequest(List<Anomaly> anomalies, Map<Long, Service> services,
+                                            List<MlCorrelateRequest.Edge> edges, Map<Long, Long> security) {
+        List<MlCorrelateRequest.Episode> episodes = anomalies.stream().map(a -> new MlCorrelateRequest.Episode(
                 a.getId(), a.getServiceId(), a.getMetricType() == null ? null : a.getMetricType().name(),
                 a.getDetector().name(), a.getDetectedAt(), a.getStatus() == AnomalyStatus.CLOSED ? endOf(a) : null,
                 peakScore(a))).toList();
-        List<MlCorrelateRequest.Edge> edges = dependencyRepository.findAll().stream()
-                .map(d -> new MlCorrelateRequest.Edge(d.getServiceId(), d.getDependsOnServiceId())).toList();
         Map<Long, String> criticality = new TreeMap<>();
         services.values().forEach(s -> criticality.put(s.getId(), s.getCriticality().name()));
-
-        // Security events of each anomalous service since (its first anomaly in the window - 60 s).
-        Map<Long, Instant> firstOnset = new TreeMap<>();
-        candidates.forEach(a -> firstOnset.merge(a.getServiceId(), a.getDetectedAt(), (x, y) -> x.isBefore(y) ? x : y));
-        Map<Long, Long> security = new TreeMap<>();
-        firstOnset.forEach((serviceId, onset) -> {
-            long count = securityEventRepository.countByServiceIdAndTimestampAfter(serviceId, onset.minus(SECURITY_LEAD));
-            if (count > 0) {
-                security.put(serviceId, count);
-            }
-        });
         return new MlCorrelateRequest(episodes, edges, criticality, security, props.profile());
     }
 
@@ -257,8 +300,8 @@ public class IncidentCorrelationJob {
             refreshed.add(incidentId);
         }
 
-        // Defensive: an OPEN incident that got no group this cycle still has its status re-derived.
-        for (Incident open : incidentRepository.findByStatus(IncidentStatus.OPEN)) {
+        // Defensive: an active incident that got no group this cycle still has its status re-derived.
+        for (Incident open : incidentRepository.findByStatusIn(ACTIVE)) {
             if (!refreshed.contains(open.getId())) {
                 updateLifecycle(open, anomalyRepository.findByIncidentIdOrderByDetectedAtAscIdAsc(open.getId()), now);
                 incidentRepository.save(open);
@@ -354,7 +397,9 @@ public class IncidentCorrelationJob {
         IncidentStatus before = incident.getStatus();
 
         if (anyOpen || now.isBefore(last.plus(props.quietPeriod()))) {
-            incident.setStatus(IncidentStatus.OPEN);
+            if (before != IncidentStatus.INVESTIGATING) {
+                incident.setStatus(IncidentStatus.OPEN); // an acknowledged incident stays INVESTIGATING
+            }
             incident.setResolvedAt(null);
             if (before == IncidentStatus.RESOLVED) {
                 addEvent(incident, event(now, "REOPENED", Map.of()));
@@ -389,6 +434,7 @@ public class IncidentCorrelationJob {
             List<Long> expired = incidentRepository.findExpiredIds(now.minus(props.retention()));
             if (!expired.isEmpty()) {
                 anomalyRepository.unlinkIncidents(expired);
+                noteRepository.deleteByIncidentIdIn(expired);
                 incidentRepository.deleteAllById(expired);
                 log.info("Retention: deleted {} resolved/merged incidents", expired.size());
             }

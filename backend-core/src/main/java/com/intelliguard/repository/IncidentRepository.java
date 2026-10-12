@@ -8,11 +8,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
 
-    List<Incident> findByStatus(IncidentStatus status);
+    List<Incident> findByStatusIn(Collection<IncidentStatus> statuses);
 
     // Backs GET /api/incidents - status optional, newest first, bounded by the Pageable.
     @Query("SELECT i FROM Incident i WHERE (:status IS NULL OR i.status = :status) " +

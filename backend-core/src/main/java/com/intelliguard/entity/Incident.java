@@ -1,5 +1,6 @@
 package com.intelliguard.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.intelliguard.entity.enums.IncidentStatus;
 import com.intelliguard.entity.enums.Severity;
 import jakarta.persistence.*;
@@ -84,9 +85,24 @@ public class Incident {
     // Set when status = MERGED: the older incident that absorbed this one.
     private Long mergedIntoId;
 
-    // Lifecycle history: [{at, type: CREATED|MERGED_FROM|MERGED_INTO|SPLIT_FROM|SPLIT_TO|REOPENED|RESOLVED, ...}]
+    // History: [{at, type: CREATED|MERGED_FROM|MERGED_INTO|SPLIT_FROM|SPLIT_TO|REOPENED|RESOLVED|NOTE_ADDED|ACKNOWLEDGED, ...}]
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     @Builder.Default
     private List<Map<String, Object>> events = new ArrayList<>();
+
+    // --- Phase 6A incident workspace (written only by IncidentWorkspaceService) ---
+
+    // Who acknowledged the incident (status -> INVESTIGATING) and when.
+    private String acknowledgedBy;
+
+    private Instant acknowledgedAt;
+
+    // Optimistic locking: the correlation job and the workspace API both write incidents; a
+    // concurrent write fails (and is retried) instead of silently overwriting the other one.
+    // The default lets Hibernate add the NOT NULL column to a table that already has rows.
+    @Version
+    @Column(columnDefinition = "bigint default 0")
+    @JsonIgnore
+    private Long version;
 }
