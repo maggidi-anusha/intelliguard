@@ -2,6 +2,7 @@ package com.intelliguard.config;
 
 import com.intelliguard.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -17,6 +18,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 // Ported from SentinelCore's SecurityConfig as a starting point (JWT filter + RBAC pattern).
@@ -50,6 +52,9 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+
+                        // ACCOUNT ADMINISTRATION - ADMIN only (public registration creates VIEWERs only)
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/health").permitAll()
                         // Spring Boot forwards to /error internally whenever a controller sends
                         // a non-2xx status (e.g. our ResponseStatusException(409)); without this,
@@ -132,13 +137,15 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // Allowed browser origins: intelliguard.cors.allowed-origins (env CORS_ALLOWED_ORIGINS),
+    // comma-separated; defaults to the local Vite dev server.
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${intelliguard.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173"
-        ));
+        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim).filter(o -> !o.isEmpty()).toList());
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

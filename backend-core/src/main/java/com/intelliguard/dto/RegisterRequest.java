@@ -20,6 +20,6 @@ public class RegisterRequest {
     @Email
     private String email;
 
-    // Optional - defaults to USER when omitted (see AuthService.register).
+    // Optional - only VIEWER is allowed (the default when omitted); USER and ADMIN -> 403.
     private String role;
 }

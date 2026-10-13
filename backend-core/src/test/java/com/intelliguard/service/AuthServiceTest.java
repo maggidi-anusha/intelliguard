@@ -1,5 +1,6 @@
 package com.intelliguard.service;
 
+import com.intelliguard.dto.AdminCreateUserRequest;
 import com.intelliguard.dto.RegisterRequest;
 import com.intelliguard.dto.UserSummaryResponse;
 import com.intelliguard.entity.Role;
@@ -27,8 +28,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-// Covers the registration role restriction (public registration can never create an ADMIN)
-// and the startup admin seeding that replaced the simulator's old ADMIN self-registration.
+// Covers the registration role restriction (public registration creates VIEWER accounts only),
+// ADMIN-only account creation, and the startup admin seeding.
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
@@ -59,14 +60,73 @@ class AuthServiceTest {
     }
 
     @Test
-    void register_withoutRole_defaultsToUser() {
+    void register_withoutRole_defaultsToViewer() {
         when(userRepository.existsByUsername("alice")).thenReturn(false);
-        stubRoleLookup("ROLE_USER");
+        stubRoleLookup("ROLE_VIEWER");
 
         UserSummaryResponse response = authService.register(registerRequest(null));
 
-        assertThat(response.getRole()).isEqualTo("USER");
+        assertThat(response.getRole()).isEqualTo("VIEWER");
         verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void register_asUser_isForbiddenAndNothingIsSaved() {
+        assertThatThrownBy(() -> authService.register(registerRequest("user")))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
+                        .isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(userRepository, never()).save(any());
+        verify(roleRepository, never()).save(any());
+    }
+
+    @Test
+    void register_withAnEmailAlreadyInUse_isConflict() {
+        when(userRepository.existsByUsername("alice")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("alice@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(registerRequest("VIEWER")))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createUser_adminCanCreateEveryRole() {
+        for (String role : new String[]{"USER", "viewer", "ADMIN"}) {
+            when(userRepository.existsByUsername("bob-" + role)).thenReturn(false);
+            stubRoleLookup("ROLE_" + role.toUpperCase());
+
+            UserSummaryResponse response = authService.createUser(
+                    new AdminCreateUserRequest("bob-" + role, "bob-" + role + "@example.com", "password123", role));
+
+            assertThat(response.getRole()).isEqualTo(role.toUpperCase());
+        }
+        verify(userRepository, org.mockito.Mockito.times(3)).save(any(User.class));
+    }
+
+    @Test
+    void createUser_duplicateUsernameOrEmail_isConflict() {
+        when(userRepository.existsByUsername("taken")).thenReturn(true);
+        when(userRepository.existsByUsername("bob")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("TAKEN@example.com")).thenReturn(true);
+
+        for (AdminCreateUserRequest r : new AdminCreateUserRequest[]{
+                new AdminCreateUserRequest("taken", "new@example.com", "password123", "USER"),
+                new AdminCreateUserRequest("bob", "TAKEN@example.com", "password123", "USER")}) {
+            assertThatThrownBy(() -> authService.createUser(r)).isInstanceOfSatisfying(ResponseStatusException.class,
+                    e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        }
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createUser_unknownRole_isBadRequest() {
+        assertThatThrownBy(() -> authService.createUser(new AdminCreateUserRequest("bob", "bob@example.com", "password123", "ROOT")))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -82,8 +142,6 @@ class AuthServiceTest {
 
     @Test
     void register_asAdmin_isForbiddenAndNothingIsSaved() {
-        when(userRepository.existsByUsername("alice")).thenReturn(false);
-
         assertThatThrownBy(() -> authService.register(registerRequest("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
@@ -95,8 +153,6 @@ class AuthServiceTest {
 
     @Test
     void register_withUnknownRole_isBadRequest() {
-        when(userRepository.existsByUsername("alice")).thenReturn(false);
-
         assertThatThrownBy(() -> authService.register(registerRequest("SUPERUSER")))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())

@@ -1,5 +1,6 @@
 package com.intelliguard.service;
 
+import com.intelliguard.dto.AdminCreateUserRequest;
 import com.intelliguard.dto.AuthResponse;
 import com.intelliguard.dto.LoginRequest;
 import com.intelliguard.dto.RegisterRequest;
@@ -22,10 +23,13 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuthService {
 
-    // Public self-registration can only ever create non-privileged accounts. ADMIN accounts
-    // are provisioned out-of-band (see AdminAccountSeeder) - otherwise anyone could call
-    // /api/auth/register with "role": "ADMIN" and bypass RBAC entirely.
-    private static final Set<String> SELF_REGISTRATION_ROLES = Set.of("USER", "VIEWER");
+    // Public self-registration only ever creates read-only VIEWER accounts. USER and ADMIN
+    // accounts are created by an ADMIN (POST /api/admin/users, createUser below) or, for the
+    // simulator's ADMIN, seeded at startup (AdminAccountSeeder) - otherwise anyone could call
+    // /api/auth/register with a privileged role and bypass RBAC.
+    private static final Set<String> SELF_REGISTRATION_ROLES = Set.of("VIEWER");
+    private static final Set<String> PRIVILEGED_ROLES = Set.of("USER", "ADMIN");
+    private static final Set<String> ADMIN_CREATABLE_ROLES = Set.of("USER", "VIEWER", "ADMIN");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -33,33 +37,44 @@ public class AuthService {
     private final JwtUtil jwtUtil;
 
     public UserSummaryResponse register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
-        }
-
         String roleName = request.getRole() == null || request.getRole().isBlank()
-                ? "USER"
+                ? "VIEWER"
                 : request.getRole().toUpperCase();
 
-        if ("ADMIN".equals(roleName)) {
+        if (PRIVILEGED_ROLES.contains(roleName)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "ADMIN accounts cannot be self-registered");
+                    roleName + " accounts cannot be self-registered; ask an administrator");
         }
-
         if (!SELF_REGISTRATION_ROLES.contains(roleName)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "role must be one of " + SELF_REGISTRATION_ROLES);
         }
+        return createAccount(request.getUsername(), request.getEmail(), request.getPassword(), roleName);
+    }
 
-        Role role = findOrCreateRole(roleName);
+    /** ADMIN-only account creation (POST /api/admin/users): USER, VIEWER or ADMIN. */
+    public UserSummaryResponse createUser(AdminCreateUserRequest request) {
+        String roleName = request.getRole().trim().toUpperCase();
+        if (!ADMIN_CREATABLE_ROLES.contains(roleName)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "role must be one of " + ADMIN_CREATABLE_ROLES);
+        }
+        return createAccount(request.getUsername(), request.getEmail(), request.getPassword(), roleName);
+    }
+
+    private UserSummaryResponse createAccount(String username, String email, String password, String roleName) {
+        if (userRepository.existsByUsername(username)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
+        }
+        if (email != null && !email.isBlank() && userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+        }
 
         User user = User.builder()
-                .username(request.getUsername())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .email(request.getEmail())
-                .role(role)
+                .username(username)
+                .passwordHash(passwordEncoder.encode(password))
+                .email(email)
+                .role(findOrCreateRole(roleName))
                 .build();
-
         userRepository.save(user);
 
         return UserSummaryResponse.builder()
