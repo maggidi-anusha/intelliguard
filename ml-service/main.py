@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException
 
+from app.copilot import AskRequest, ask
 from app.correlation import CorrelateRequest, correlate
 from app.scoring import Scorer, ScoreRequest
 
@@ -31,3 +32,10 @@ def correlate_episodes(request: CorrelateRequest):
         return correlate(request)
     except KeyError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+
+# Retrieval-and-template assistant over one incident's data and the runbooks (docs/runbooks);
+# not a language model and not a source of new facts. See app/copilot.py.
+@app.post("/copilot/ask")
+def copilot_ask(request: AskRequest):
+    return ask(request)

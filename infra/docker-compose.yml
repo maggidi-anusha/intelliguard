@@ -43,9 +43,11 @@ services:
   ml-service:
     build:
       context: ../ml-service
-      # The simulator's generator produces ml-service's normal training data at build time.
+      # The simulator's generator produces ml-service's normal training data at build time;
+      # the runbooks are what the incident copilot (POST /copilot/ask) retrieves from.
       additional_contexts:
         simulator: ../simulator
+        runbooks: ../docs/runbooks
     ports:
       - "8000:8000"
     depends_on:
