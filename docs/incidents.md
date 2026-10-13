@@ -46,9 +46,9 @@ Every cycle (`IncidentCorrelationJob`, 15 s, fixed delay):
    deployed detectors are included. ml-service compares peaks within an incident, so both are put
    on the L1 scale (0–1, 0.5 = threshold): an L1 episode sends its peak score, an L0 episode sends
    0.5 × (value / limit), capped at 1.
-2. **Request.** The episodes, every `service_dependencies` edge, each service's criticality, the
-   number of security events per anomalous service since 60 s before its first episode in the
-   input, and the parameter profile `full_call_graph`.
+2. **Request.** The episodes, every `service_dependencies` edge, each service's criticality and
+   the parameter profile `full_call_graph`. Each changed group is then re-ranked in its own call
+   with the security events counted per incident window (start − 60 s to last activity).
 3. **Grouping (ml-service).** Two episodes are linked when their active windows overlap or are at
    most **240 s** apart **and** their services are the same or at most **1 hop** apart in the graph
    (edges taken as undirected). An open episode counts as active up to the newest timestamp in the
@@ -196,9 +196,8 @@ numbers above come from the offline evaluation.
 - **Undetected roots can't be ranked:** HARD cascades (subtle drifting root, visible symptoms)
   had their root detected in only 8 of 83 TEST cases. The rank-1 service is then a symptom.
 - **Differences from the offline evaluation:** the evaluation used L1 episodes only; live, L0
-  episodes are included with the 0.5 × ratio peak scaling (untested offline). The evaluation
-  counted security events per incident window. Live, each service counts from 60 s before its
-  own first episode in the input, with one ml-service call per cycle.
+  episodes are included with the 0.5 × ratio peak scaling (untested offline). Security events
+  are counted per incident window (start − 60 s to last activity), as in the evaluation.
 - **Episode timing:** L1 end times can run late after long episodes, which delays resolution.
   Every isolated anomaly, including detector false alarms, becomes a single-service incident.
   A simulator restart with a new seed shifts baselines and briefly produces such alarms.
@@ -207,9 +206,8 @@ numbers above come from the offline evaluation.
   api-gateway) aged out first, the two ends (2 hops apart) came back as separate groups. The job
   recorded a split into a new, immediately RESOLVED incident. Members now enter and leave the
   input together, and a RESOLVED incident is never split without a new anomaly.
-- **Security events are counted per service, not per incident:** when two incidents involve the
-  same service within the input (e.g. a cascade resolving while the next one starts on the same
-  database), the newer one's security events also appear in the older one's last ranking.
+- **Security events are counted per incident window** (start − 60 s to last activity), so two
+  consecutive incidents on the same service no longer share them.
 - **Single backend instance assumed:** edge writes are serialized in-process (`synchronized`).
   The database's unique constraint still prevents duplicates, but not two concurrent edges that
   only together form a cycle.

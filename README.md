@@ -47,7 +47,7 @@ docker compose up --build
 - [x] **Phase 3** — Dashboard v1
 - [x] **Phase 4** — Anomaly detection + risk engine
 - [x] **Phase 5** — Correlation + root cause
-- [ ] **Phase 6** — Incident workspace + lite RAG copilot
+- [x] **Phase 6** — Incident workspace + lite RAG copilot
 - [ ] **Phase 7** — Testing, CI/CD, deployment, evaluation, report
 
 ### Phase 3 details
@@ -153,10 +153,9 @@ live integration has also been checked on synthetic cascades only.
   of 83 cases, so the rank-1 service is then a symptom. The weights and gap were tuned on
   validation seeds, and the 240 s gap is the largest value tried.
 
-### Phase 6 details (in progress)
+### Phase 6 details
 
-Phase 6A adds the incident workspace. The copilot (Phase 6B) is still to come, so Phase 6 is not
-ticked yet.
+Phase 6 adds the incident workspace (6A) and an incident copilot (6B).
 
 - **What it shows:** an **Incidents** tab lists incidents newest first (status, severity and
   peak severity, title, number of services, likely root cause with its confidence, start and
@@ -175,7 +174,26 @@ ticked yet.
   concurrent job update and user action retry instead of overwriting each other.
 - **Root-cause evidence:** security events now count only inside each incident's own window, so
   two consecutive incidents on the same service no longer share them.
+- **Copilot ("Ask about this incident"):** a **retrieval-and-template assistant**, not a free-form
+  chat model and not a source of new facts. The backend sends ml-service `POST /copilot/ask` the
+  question and the incident's own data (ranking with evidence and confidence, services with risk,
+  anomalies, timeline, notes). The intent is classified by rules, and the answer sentences are
+  templated from that data or quoted verbatim from 8 generic operations runbooks
+  (`docs/runbooks`). The runbooks are retrieved with TF-IDF plus a boost for runbooks that match the
+  incident's metric or security-event types. Every answer cites its sources, and root-cause answers
+  state the confidence and that the ranking is a heuristic. Off-topic questions, instruction
+  overrides and requests for facts not in the data are refused. Notes are quoted, never followed.
+  Any role may ask, VIEWER included; nothing is stored. If ml-service is down the panel shows a
+  503 message and the rest of the workspace keeps working. See [`docs/copilot.md`](docs/copilot.md).
+- **Copilot evaluation (small, handwritten):** on 6 incidents and 29 questions written by the
+  project, 21/21 in-scope questions got the right intent, the expected runbook was in the top 3
+  for 14/15, 21/21 answers passed an automated groundedness check (every number, service name and
+  citation comes from the incident data or a cited runbook) and 8/8 off-topic or injection
+  questions were refused. The set is easy by construction and there was no user study; see
+  [`docs/evaluation/phase6-copilot.md`](docs/evaluation/phase6-copilot.md).
 - **Known limits:** there is no un-acknowledge, assignment, or editing/deleting of notes. Notes
   and acknowledgement stay on an incident that gets merged into an older one. The list shows the
   newest 100 incidents and the workspace the newest 200 notes. The root cause is still a
-  heuristic ranking, checked on synthetic cascades only.
+  heuristic ranking, checked on synthetic cascades only. The copilot only covers the question types
+  its templates know: paraphrases that share no words with its rules or runbooks are refused or
+  misclassified, and the runbooks are general guidance, not facts about this system.
