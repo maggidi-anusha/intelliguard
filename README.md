@@ -46,6 +46,19 @@ registration creates read-only VIEWER accounts; USER and ADMIN accounts are crea
 (`POST /api/admin/users`). The simulator's ADMIN account is seeded from
 `INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD`.
 
+## Deployment
+
+`infra/docker-compose.prod.yml` is a production-style stack. It serves the frontend as an nginx
+static build that also proxies `/api`, and publishes only the frontend and the Jaeger UI. It has
+healthchecks, restart policies and a named Postgres volume, and backend-core runs with the `prod`
+profile, with secrets from `infra/.env` and no insecure defaults. See
+[`docs/deployment.md`](docs/deployment.md) for setup, accounts, the simulator, backups,
+upgrades and troubleshooting. `scripts/smoke_test.py` checks a running stack end to end.
+
+Documentation: [architecture](docs/architecture.md) (components, data flow, tables, endpoints and
+roles, background jobs) and the [evaluation summary](docs/evaluation/summary.md) (Phases 4–6,
+including what is and isn't claimed).
+
 ## Testing and CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request to `master`. It
