@@ -16,6 +16,7 @@ public record ScoringProperties(
         Duration mlTimeout,
         Duration staleAfter,         // newest sample older than this -> no new data, don't score
         Duration recentWindow,       // look-back for error logs and security events
-        Duration anomalyRetention    // CLOSED anomalies older than this are deleted
+        Duration anomalyRetention,   // CLOSED anomalies older than this are deleted
+        Duration episodeStaleAfter   // an OPEN episode last flagged this long before new data is closed, not extended
 ) {
 }

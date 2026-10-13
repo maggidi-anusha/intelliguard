@@ -6,6 +6,7 @@ import com.intelliguard.entity.enums.DetectorType;
 import com.intelliguard.entity.enums.MetricType;
 import com.intelliguard.entity.enums.SignalType;
 
+import java.time.Duration;
 import java.time.Instant;
 
 // Turns per-cycle detector flags into anomaly EPISODES instead of one row per tick:
@@ -18,6 +19,22 @@ import java.time.Instant;
 public final class AnomalyEpisodeTracker {
 
     private AnomalyEpisodeTracker() {
+    }
+
+    /**
+     * Closes an OPEN episode whose last flagged sample is more than staleAfter before `reference`
+     * (the newest sample about to be processed), e.g. one that was open when the stack stopped. Its
+     * end is its last flagged time, so an episode is never extended across such a gap; a new flag
+     * then starts a new episode. Returns true when it closed the episode.
+     */
+    public static boolean closeIfStale(Anomaly open, Instant reference, Duration staleAfter) {
+        Instant last = open.getLastFlaggedAt() != null ? open.getLastFlaggedAt() : open.getDetectedAt();
+        if (last == null || !last.isBefore(reference.minus(staleAfter))) {
+            return false;
+        }
+        open.setStatus(AnomalyStatus.CLOSED);
+        open.setEndedAt(last);
+        return true;
     }
 
     /** @return the anomaly to save after this cycle, or null when nothing changed. */

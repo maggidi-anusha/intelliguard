@@ -125,10 +125,16 @@ public class RiskScoringJob {
         String mlStatus = ml.isEmpty() ? "unavailable" : (mlScored ? "ok" : "insufficient data");
 
         Map<String, Anomaly> open = new HashMap<>();
-        for (Anomaly a : anomalyRepository.findByServiceIdAndStatus(id, AnomalyStatus.OPEN)) {
-            open.put(key(a.getMetricType(), a.getDetector()), a);
-        }
         List<Anomaly> changed = new ArrayList<>();
+        for (Anomaly a : anomalyRepository.findByServiceIdAndStatus(id, AnomalyStatus.OPEN)) {
+            // Last flagged long before this data (e.g. the stack was stopped): close it at its last
+            // flagged time instead of extending it across the gap.
+            if (AnomalyEpisodeTracker.closeIfStale(a, newest, scoring.episodeStaleAfter())) {
+                changed.add(a);
+            } else {
+                open.put(key(a.getMetricType(), a.getDetector()), a);
+            }
+        }
         List<String> l0Violated = new ArrayList<>();
         List<String> l1Flagged = new ArrayList<>();
         int closeAfter = scoring.closeAfterCycles();

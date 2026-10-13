@@ -10,6 +10,7 @@ import com.intelliguard.entity.enums.Criticality;
 import com.intelliguard.entity.enums.DetectorType;
 import com.intelliguard.entity.enums.MetricType;
 import com.intelliguard.entity.enums.ServiceType;
+import com.intelliguard.entity.enums.SignalType;
 import com.intelliguard.ml.MlScoringClient;
 import com.intelliguard.repository.AnomalyRepository;
 import com.intelliguard.repository.LogRecordRepository;
@@ -79,7 +80,7 @@ class RiskScoringJobTest {
     @BeforeEach
     void setUp() {
         ScoringProperties scoring = new ScoringProperties(true, 10_000, 72, 61, 3, "http://ml-service:8000",
-                Duration.ofSeconds(2), Duration.ofSeconds(60), Duration.ofMinutes(5), Duration.ofDays(7));
+                Duration.ofSeconds(2), Duration.ofSeconds(60), Duration.ofMinutes(5), Duration.ofDays(7), Duration.ofMinutes(5));
         RiskCalculator calculator = new RiskCalculator(RiskCalculatorTest.props(0.40, 0.20, 0.10, 0.15, 0.15));
         job = new RiskScoringJob(services, metrics, logs, security, anomalies, risks, ml, calculator, store,
                 scoring, RiskCalculatorTest.props(0.40, 0.20, 0.10, 0.15, 0.15));
@@ -117,6 +118,51 @@ class RiskScoringJobTest {
             assertThat(a.getStatus()).isEqualTo(AnomalyStatus.OPEN);
             assertThat(a.getAnomalyScore()).isCloseTo(97.0 / 90.0, org.assertj.core.data.Offset.offset(1e-9));
         });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void anEpisodeLeftOpenAcrossALongGap_isClosedAtItsLastFlag_andANewEpisodeStarts() {
+        // Live case: the stack stopped while this episode was OPEN; 16 hours later data flows again.
+        Instant lastFlag = NOW.minus(Duration.ofHours(16));
+        Anomaly old = Anomaly.builder().id(41L).serviceId(6L).signalType(SignalType.METRIC).metricType(MetricType.CPU)
+                .detector(DetectorType.L0).status(AnomalyStatus.OPEN).detectedAt(lastFlag.minusSeconds(120))
+                .lastFlaggedAt(lastFlag).anomalyScore(1.05).unflaggedCycles(0).incidentId(46L).build();
+        when(services.findAll()).thenReturn(List.of(service(6, "order-service")));
+        when(metrics.findByServiceIdOrderByTimestampDesc(eq(6L), any())).thenReturn(window(6, 70, 97.0));
+        when(anomalies.findByServiceIdAndStatus(eq(6L), eq(AnomalyStatus.OPEN))).thenReturn(List.of(old));
+
+        job.runCycle(NOW);
+
+        ArgumentCaptor<List<Anomaly>> saved = ArgumentCaptor.forClass(List.class);
+        verify(anomalies).saveAll(saved.capture());
+        assertThat(saved.getValue()).hasSize(2);
+        assertThat(old.getStatus()).isEqualTo(AnomalyStatus.CLOSED);
+        assertThat(old.getEndedAt()).isEqualTo(lastFlag);                 // not extended across the gap
+        Anomaly fresh = saved.getValue().stream().filter(a -> a != old).findFirst().orElseThrow();
+        assertThat(fresh.getStatus()).isEqualTo(AnomalyStatus.OPEN);
+        assertThat(fresh.getDetectedAt()).isEqualTo(NOW.minusSeconds(5));  // a new episode, starting now
+        assertThat(fresh.getIncidentId()).isNull();                        // not linked to the old incident
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void backToBackSamples_extendTheSameEpisode() {
+        Anomaly open = Anomaly.builder().id(42L).serviceId(6L).signalType(SignalType.METRIC).metricType(MetricType.CPU)
+                .detector(DetectorType.L0).status(AnomalyStatus.OPEN).detectedAt(NOW.minusSeconds(60))
+                .lastFlaggedAt(NOW.minusSeconds(15)).anomalyScore(1.05).unflaggedCycles(0).build();
+        when(services.findAll()).thenReturn(List.of(service(6, "order-service")));
+        when(metrics.findByServiceIdOrderByTimestampDesc(eq(6L), any())).thenReturn(window(6, 70, 97.0));
+        when(anomalies.findByServiceIdAndStatus(eq(6L), eq(AnomalyStatus.OPEN))).thenReturn(List.of(open));
+
+        job.runCycle(NOW);
+
+        ArgumentCaptor<List<Anomaly>> saved = ArgumentCaptor.forClass(List.class);
+        verify(anomalies).saveAll(saved.capture());
+        assertThat(saved.getValue()).singleElement().isSameAs(open);
+        assertThat(open.getStatus()).isEqualTo(AnomalyStatus.OPEN);
+        assertThat(open.getDetectedAt()).isEqualTo(NOW.minusSeconds(60));
+        assertThat(open.getLastFlaggedAt()).isEqualTo(NOW.minusSeconds(5));
     }
 
     @Test

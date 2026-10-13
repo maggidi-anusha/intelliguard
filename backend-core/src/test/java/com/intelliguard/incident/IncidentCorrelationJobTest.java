@@ -375,6 +375,26 @@ class IncidentCorrelationJobTest {
     }
 
     @Test
+    void afterTheStaleCleanup_aNewAnomalyStartsANewIncident_andTheOldOneResolves() {
+        // Restart case: the old incident was still OPEN; its episode was closed at its last flag
+        // 16 hours ago by StaleEpisodeCleanup. A new anomaly now must not join it.
+        closed(1, 7, 0, 120);
+        nextGroups = List.of(List.of(1L));
+        job.runCycle(T0.plusSeconds(130));
+        Incident old = incidentRows.values().iterator().next();
+        assertThat(old.getStatus()).isEqualTo(IncidentStatus.OPEN);
+
+        long later = 16 * 3600;
+        open(2, 7, later);
+        nextGroups = List.of(List.of(1L), List.of(2L)); // 16 h apart: separate groups
+        job.runCycle(T0.plusSeconds(later + 30));
+
+        assertThat(old.getStatus()).isEqualTo(IncidentStatus.RESOLVED);
+        assertThat(anomalyRows.get(2L).getIncidentId()).isNotEqualTo(old.getId()).isNotNull();
+        assertThat(incidentRows).hasSize(2);
+    }
+
+    @Test
     void mlServiceDown_skipsTheCycleWithoutTouchingIncidents() {
         open(1, 2, 0);
         nextGroups = List.of(List.of(1L));

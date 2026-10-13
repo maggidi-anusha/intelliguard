@@ -29,6 +29,16 @@ public interface AnomalyRepository extends JpaRepository<Anomaly, Long> {
     @Transactional
     long deleteByStatusAndEndedAtBefore(AnomalyStatus status, Instant cutoff);
 
+    // Startup cleanup (StaleEpisodeCleanup): close OPEN episodes last flagged before the cutoff, at
+    // their last flagged time. Idempotent: closed rows no longer match.
+    @Modifying(clearAutomatically = true)
+    @Transactional
+    @Query("UPDATE Anomaly a SET a.status = com.intelliguard.entity.enums.AnomalyStatus.CLOSED, " +
+            "a.endedAt = COALESCE(a.lastFlaggedAt, a.detectedAt) " +
+            "WHERE a.status = com.intelliguard.entity.enums.AnomalyStatus.OPEN " +
+            "AND COALESCE(a.lastFlaggedAt, a.detectedAt) < :cutoff")
+    int closeStaleOpenEpisodes(@Param("cutoff") Instant cutoff);
+
     // --- Phase 5.3 incident correlation ---
 
     // Correlation input: OPEN episodes, unlinked CLOSED ones that ended at or after the cutoff
