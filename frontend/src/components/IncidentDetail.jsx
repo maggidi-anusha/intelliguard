@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../AuthContext'
 import { api } from '../api'
+import { CopilotPanel } from './CopilotPanel'
 import { formatConfidence, formatTime, IncidentStatusBadge, SeverityBadge } from './incidentUi'
 
 const POLL_INTERVAL_MS = 5000
@@ -8,7 +9,8 @@ const MAX_NOTE_LENGTH = 2000
 
 // The incident workspace (GET /api/incidents/{id}, polled): ranked root-cause candidates with their
 // evidence, affected services with current risk, the timeline, the anomaly episodes and the notes.
-// USER and ADMIN can add notes and acknowledge; for VIEWER both controls are hidden.
+// USER and ADMIN can add notes and acknowledge; for VIEWER both controls are hidden. Every role can
+// ask the incident copilot (CopilotPanel).
 export function IncidentDetail({ id, serviceNameById, onBack }) {
   const { auth, handleAuthError } = useAuth()
   const canWrite = auth.role === 'USER' || auth.role === 'ADMIN'
@@ -49,6 +51,8 @@ export function IncidentDetail({ id, serviceNameById, onBack }) {
           {!canWrite && (
             <p className="muted incident-readonly">Read-only view: notes and acknowledgement need a USER or ADMIN account.</p>
           )}
+
+          <CopilotPanel key={incident.id} incidentId={incident.id} />
 
           <div className="incident-grid">
             <RootCause incident={incident} />

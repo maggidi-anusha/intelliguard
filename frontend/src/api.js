@@ -98,4 +98,8 @@ export const api = {
 
   acknowledgeIncident: (token, id) =>
     request(`/api/incidents/${id}/acknowledge`, { method: 'POST', token }),
+
+  // Incident copilot (any role): retrieval-and-template answers over this incident and the runbooks.
+  askCopilot: (token, id, question) =>
+    request(`/api/incidents/${id}/copilot/ask`, { method: 'POST', body: { question }, token }),
 }
