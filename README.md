@@ -1,5 +1,7 @@
 # IntelliGuard
 
+[![CI](https://github.com/maggidi-anusha/intelliguard/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/maggidi-anusha/intelliguard/actions/workflows/ci.yml)
+
 AI-powered enterprise observability platform: correlates metrics, logs, traces, and
 security events, applies ML-based anomaly detection, scores risk, and assists engineers
 with root-cause heuristics and an AI copilot. Direct successor to SentinelCore, replacing
@@ -38,6 +40,37 @@ docker compose up --build
 - backend-core: http://localhost:8080
 - ml-service: http://localhost:8000
 - Jaeger UI: http://localhost:16686
+
+Copy `infra/.env.example` to `infra/.env` first; it lists every variable with a comment. Public
+registration creates read-only VIEWER accounts; USER and ADMIN accounts are created by an ADMIN
+(`POST /api/admin/users`). The simulator's ADMIN account is seeded from
+`INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD`.
+
+## Testing and CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request to `master`. It
+runs five jobs: backend tests against a Postgres service container, ml-service tests, simulator
+tests, the frontend build, and `docker compose build`. To run the same suites locally:
+
+```bash
+# backend-core: needs a Postgres, e.g. the compose one on port 5433
+cd backend-core && DB_URL=jdbc:postgresql://localhost:5433/intelliguard DB_USERNAME=<user> DB_PASSWORD=<password> ./mvnw test
+
+# ml-service (Python 3.11): uses ../simulator and ../docs/runbooks
+cd ml-service && pip install -r requirements-dev.txt && python -m pytest
+
+# simulator (Python 3.11)
+cd simulator && pip install -r requirements-dev.txt && python -m pytest tests
+
+# frontend
+cd frontend && npm ci && npm run build
+
+# all images
+cd infra && docker compose --env-file .env.example build
+```
+
+The offline evaluations are reproducible scripts as well: `ml-service/evaluation/run_experiments.py`
+(detectors), `run_correlation_experiments.py` (correlation) and `copilot_eval.py` (copilot).
 
 ## Roadmap
 
