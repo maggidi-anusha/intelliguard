@@ -1,0 +1,109 @@
+# Production-style stack. STANDALONE (not an override of docker-compose.yml):
+#   cd infra
+#   docker compose -f docker-compose.prod.yml up -d --build                       # app only
+#   docker compose -f docker-compose.prod.yml --profile simulator up -d --build   # + simulator
+# Secrets come from infra/.env (see .env.example); there are no insecure defaults: compose refuses
+# to start without them, and backend-core runs with the prod profile, which refuses a missing,
+# short or placeholder JWT secret. Only the frontend (nginx, which also proxies /api) and the
+# Jaeger UI are published to the host. See docs/deployment.md.
+name: intelliguard-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${INTELLIGUARD_DB_NAME:?set INTELLIGUARD_DB_NAME in infra/.env}
+      POSTGRES_USER: ${INTELLIGUARD_DB_USERNAME:?set INTELLIGUARD_DB_USERNAME in infra/.env}
+      POSTGRES_PASSWORD: ${INTELLIGUARD_DB_PASSWORD:?set INTELLIGUARD_DB_PASSWORD in infra/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: unless-stopped
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"   # UI only; OTLP (4317) stays on the internal network
+
+  ml-service:
+    build:
+      context: ../ml-service
+      additional_contexts:
+        simulator: ../simulator
+        runbooks: ../docs/runbooks
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  backend-core:
+    build: ../backend-core
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${INTELLIGUARD_DB_NAME:?set INTELLIGUARD_DB_NAME in infra/.env}
+      DB_USERNAME: ${INTELLIGUARD_DB_USERNAME:?set INTELLIGUARD_DB_USERNAME in infra/.env}
+      DB_PASSWORD: ${INTELLIGUARD_DB_PASSWORD:?set INTELLIGUARD_DB_PASSWORD in infra/.env}
+      JWT_SECRET: ${INTELLIGUARD_JWT_SECRET:?set INTELLIGUARD_JWT_SECRET in infra/.env (e.g. openssl rand -base64 48)}
+      SIMULATOR_ADMIN_PASSWORD: ${INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD:?set INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD in infra/.env}
+      # Empty = only same-origin requests (through the frontend's /api proxy).
+      CORS_ALLOWED_ORIGINS: ${INTELLIGUARD_CORS_ALLOWED_ORIGINS:-}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      backend-core:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # Optional telemetry generator: started only with --profile simulator.
+  simulator:
+    build: ../simulator
+    profiles: ["simulator"]
+    restart: unless-stopped
+    depends_on:
+      backend-core:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    environment:
+      BACKEND_URL: http://backend-core:8080
+      OTLP_ENDPOINT: jaeger:4317
+      TICK_SECONDS: "5"
+      SIMULATOR_ADMIN_PASSWORD: ${INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD:?set INTELLIGUARD_SIMULATOR_ADMIN_PASSWORD in infra/.env}
+      # demo (default) | continuous | normal | cascade
+      SCENARIO_MODE: ${INTELLIGUARD_SCENARIO_MODE:-demo}
+      SIMULATOR_SEED: ${INTELLIGUARD_SIMULATOR_SEED:-}
+
+volumes:
+  pgdata:

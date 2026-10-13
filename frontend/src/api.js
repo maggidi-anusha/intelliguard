@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// Unset (dev): the backend on localhost:8080. Set to an empty string at build time (production
+// image, frontend/Dockerfile.prod): same origin, with nginx proxying /api to backend-core.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
 export class ApiError extends Error {
   constructor(status, message) {
