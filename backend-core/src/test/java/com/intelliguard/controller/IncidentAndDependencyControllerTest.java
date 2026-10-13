@@ -18,6 +18,9 @@ import com.intelliguard.repository.IncidentRepository;
 import com.intelliguard.repository.RiskScoreRepository;
 import com.intelliguard.repository.ServiceRepository;
 import com.intelliguard.risk.RiskSnapshotStore;
+import com.intelliguard.ml.MlCopilotResponse;
+import com.intelliguard.service.CopilotService;
+import com.intelliguard.service.IncidentDetailService;
 import com.intelliguard.service.IncidentWorkspaceService;
 import com.intelliguard.service.ServiceDependencyService;
 import com.intelliguard.util.JwtUtil;
@@ -58,11 +61,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // With the real SecurityConfig: both APIs need a token (401 without); incidents are read-only for
 // every role; dependency edges are readable by every role and writable by USER/ADMIN only.
 @WebMvcTest({IncidentController.class, ServiceDependencyController.class})
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, IncidentDetailService.class})
 class IncidentAndDependencyControllerTest {
 
     private static final String EDGE = "{\"serviceId\": 7, \"dependsOnServiceId\": 6}";
     private static final String NOTE = "{\"text\": \"checked the order-db disk\"}";
+    private static final String QUESTION = "{\"question\": \"Why is this the likely root cause?\"}";
 
     @Autowired
     private MockMvc mockMvc;
@@ -83,6 +87,8 @@ class IncidentAndDependencyControllerTest {
     private IncidentNoteRepository noteRepository;
     @MockitoBean
     private IncidentWorkspaceService workspaceService;
+    @MockitoBean
+    private CopilotService copilotService;
     @MockitoBean
     private JwtUtil jwtUtil;
 
@@ -123,6 +129,42 @@ class IncidentAndDependencyControllerTest {
                     .andExpect(jsonPath("$.version").doesNotExist());
             verify(workspaceService).addNote(1L, "checked the order-db disk", name);
         }
+    }
+
+    @Test
+    void copilot_everyRoleMayAsk_noTokenIsUnauthorized() throws Exception {
+        when(copilotService.ask(eq(1L), any())).thenReturn(new MlCopilotResponse("The heuristic ranking puts order-db first.",
+                List.of(new MlCopilotResponse.Citation("INCIDENT_DATA", "rootCause", "Root-cause ranking", "#1 order-db 0.86")),
+                "extractive", "root_cause", true, false, null));
+
+        mockMvc.perform(post("/api/incidents/1/copilot/ask").contentType(MediaType.APPLICATION_JSON).content(QUESTION))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(copilotService);
+        for (String role : List.of("VIEWER", "USER", "ADMIN")) {
+            mockMvc.perform(post("/api/incidents/1/copilot/ask").contentType(MediaType.APPLICATION_JSON).content(QUESTION)
+                            .with(user("u").roles(role)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.mode").value("extractive"))
+                    .andExpect(jsonPath("$.citations[0].id").value("rootCause"));
+        }
+        verify(copilotService, org.mockito.Mockito.times(3)).ask(1L, "Why is this the likely root cause?");
+    }
+
+    @Test
+    void copilotErrorsReachTheClient() throws Exception {
+        when(copilotService.ask(eq(1L), any())).thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Question must not be blank"));
+        when(copilotService.ask(eq(404L), any())).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Incident 404 not found"));
+        when(copilotService.ask(eq(2L), any())).thenThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "The incident copilot is unavailable right now (ml-service did not answer). The rest of the incident workspace still works."));
+
+        mockMvc.perform(post("/api/incidents/1/copilot/ask").contentType(MediaType.APPLICATION_JSON).content("{\"question\": \" \"}")
+                .with(user("v").roles("VIEWER"))).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/incidents/404/copilot/ask").contentType(MediaType.APPLICATION_JSON).content(QUESTION)
+                .with(user("v").roles("VIEWER"))).andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/incidents/2/copilot/ask").contentType(MediaType.APPLICATION_JSON).content(QUESTION)
+                        .with(user("v").roles("VIEWER")))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("The incident copilot is unavailable")));
     }
 
     @Test

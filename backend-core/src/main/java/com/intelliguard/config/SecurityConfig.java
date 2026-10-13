@@ -104,6 +104,9 @@ public class SecurityConfig {
                         .hasAnyRole("VIEWER", "USER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/incidents/*/notes", "/api/incidents/*/acknowledge")
                         .hasAnyRole("USER", "ADMIN")
+                        // The incident copilot only reads, so every role may ask it.
+                        .requestMatchers(HttpMethod.POST, "/api/incidents/*/copilot/ask")
+                        .hasAnyRole("VIEWER", "USER", "ADMIN")
 
                         // SERVICE DEPENDENCY GRAPH - READ: VIEWER, USER, ADMIN; WRITE: USER, ADMIN
                         // (the same rule as service writes below)
