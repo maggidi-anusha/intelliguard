@@ -60,7 +60,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run tests
-        run: python -m pytest -q
+        # Source only: app/, evaluation/ and main.py (tests/ is not measured).
+        run: python -m pytest -q --cov=app --cov=evaluation --cov=main --cov-report=term
 
   simulator:
     name: simulator (Python 3.11)
@@ -78,7 +79,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run tests
-        run: python -m pytest -q tests
+        # Source only: the simulator is flat top-level modules, so each is listed (tests/ is not measured).
+        run: |
+          python -m pytest -q tests \
+            --cov=client --cov=config --cov=engine --cov=episodes --cov=main \
+            --cov=offline --cov=security_events --cov=telemetry_generator \
+            --cov=topology --cov=tracing \
+            --cov-report=term
 
   frontend:
     name: frontend (Node LTS)
